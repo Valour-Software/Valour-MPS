@@ -21,7 +21,7 @@ namespace Valour.MPS.Controllers
             _memoryCache = memoryCache;
         }
 
-        public async Task<byte[]> GetImageBytes(string id, string type)
+        private async Task<byte[]> GetImageBytes(string id, string type)
         {
             byte[] bytes;
 
@@ -40,6 +40,45 @@ namespace Valour.MPS.Controllers
             }
 
             return bytes;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetFile(string id)
+        {
+            byte[] bytes;
+            string meta = "";
+
+            // Get cached file
+            if (!_memoryCache.TryGetValue(id, out bytes))
+            {
+                string path = "../Content/File/" + id;
+
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                bytes = await File.ReadAllBytesAsync(path);
+
+                _memoryCache.Set(id, bytes);
+            }
+
+            // Get cached meta
+            if (!_memoryCache.TryGetValue(id + "-meta", out meta))
+            {
+                string path = "../Content/File/" + id + ".meta";
+
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                meta = await File.ReadAllTextAsync(path);
+
+                _memoryCache.Set(id + "-meta", bytes);
+            }
+
+            return new FileContentResult(bytes, meta);
         }
 
         [HttpGet]

@@ -38,10 +38,39 @@ namespace Valour.MPS.Controllers
             return new JsonResult(response);
         }
 
-        [HttpPost]
-        public async Task SendMedia(IFormFile file)
+        public HashSet<string> ImageContent = new HashSet<string>()
         {
+            "image/gif",
+            "image/jpeg",
+            "image/png",
+            "image/tiff",
+            "image/vnd.microsoft.icon",
+            "image/x-icon",
+            "image/vnd.djvu",
+            "image/svg+xml"
+        };
 
+        [HttpPost]
+        // 10MB max size for general media
+        [RequestSizeLimit(10240000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10240000)]
+        public async Task<IActionResult> SendFile(IFormFile file)
+        {
+            // Images should be sent thru /SendImage
+            if (ImageContent.Contains(file.ContentType))
+            {
+                return new UnsupportedMediaTypeResult();
+            }
+
+            string location = await StorageManager.SaveContent(file, "File");
+
+            UploadResponse response = new UploadResponse()
+            {
+                Location = location,
+                Success = true
+            };
+
+            return new JsonResult(response);
         }
 
         [HttpPost]

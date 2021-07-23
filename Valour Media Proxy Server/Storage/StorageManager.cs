@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -22,6 +23,10 @@ namespace Valour.MPS.Storage
             if (!Directory.Exists("../Content/Image"))
             {
                 Directory.CreateDirectory("../Content/Image");
+            }
+            if (!Directory.Exists("../Content/File"))
+            {
+                Directory.CreateDirectory("../Content/File");
             }
         }
 
@@ -55,6 +60,36 @@ namespace Valour.MPS.Storage
                     return "https://msp.valour.gg/" + imagePath;
                 }
             });
+        }
+
+        public static async Task<string> SaveContent(IFormFile file, string type)
+        {
+            using (MemoryStream stream = new MemoryStream())
+            {
+                await file.CopyToAsync(stream);
+
+                // Get hash from file
+                byte[] h = SHA256.ComputeHash(stream.ToArray());
+                string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
+
+                string ext = Path.GetExtension(file.FileName);
+
+                string contentPath = "Content/" + type + "/" + hash + ext;
+                string metaPath =    "Content/" + type + "/" + hash + ext + ".meta";
+
+                if (!File.Exists(contentPath))
+                {
+                    using (FileStream fileStream = new FileStream("../" + contentPath, FileMode.Create, FileAccess.Write))
+                    {
+                        stream.WriteTo(fileStream);
+                    }
+
+                    // Write metadata
+                    await File.WriteAllTextAsync("../" + metaPath, file.ContentType);
+                }
+
+                return "https://msp.valour.gg/" + contentPath;
+            }
         }
     }
 }
