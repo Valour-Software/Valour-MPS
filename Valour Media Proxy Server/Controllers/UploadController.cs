@@ -20,9 +20,22 @@ namespace Valour.MPS.Controllers
     public class UploadController
     {
         [HttpPost]
-        public async Task SendImage(IFormFile file)
+        // 10MB max size for general pictures
+        [RequestSizeLimit(10240000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10240000)]
+        public async Task<IActionResult> SendImage(IFormFile file)
         {
+            Bitmap sourceImage = file.TryGetImage();
+            Bitmap destImage = new Bitmap(sourceImage);
+            string location = await StorageManager.SaveImage(destImage, "Image");
 
+            UploadResponse response = new UploadResponse()
+            {
+                Location = location,
+                Success = true
+            };
+
+            return new JsonResult(response);
         }
 
         [HttpPost]
@@ -48,7 +61,7 @@ namespace Valour.MPS.Controllers
             // Resize image to pfp scale
             Bitmap formattedImage = await ImageUtility.ConvertToProfileImage(sourceImage);
 
-            string location = await StorageManager.SaveProfileImage(formattedImage);
+            string location = await StorageManager.SaveImage(formattedImage, "ProfileImage");
 
             //var result = new FileStreamResult(stream, "image/jpeg")
             //{

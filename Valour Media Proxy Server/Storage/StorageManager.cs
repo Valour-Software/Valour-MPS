@@ -11,24 +11,25 @@ namespace Valour.MPS.Storage
 {
     public static class StorageManager
     {
-
-        const string profilePath = "Content/ProfileImage";
-
         static SHA256 SHA256 = SHA256.Create();
 
         static StorageManager()
         {
-            if (!Directory.Exists(profilePath))
+            if (!Directory.Exists("../Content/ProfileImage"))
             {
-                Directory.CreateDirectory(profilePath);
+                Directory.CreateDirectory("../Content/ProfileImage");
+            }
+            if (!Directory.Exists("../Content/Image"))
+            {
+                Directory.CreateDirectory("../Content/Image");
             }
         }
 
         /// <summary>
-        /// Saves the given profile image
+        /// Saves the given image
         /// </summary>
         /// <returns>The path to the image</returns>
-        public static async Task<string> SaveProfileImage(Bitmap image)
+        public static async Task<string> SaveImage(Bitmap image, string type)
         {
             return await Task.Run(() =>
             {
@@ -41,7 +42,7 @@ namespace Valour.MPS.Storage
                     byte[] h = SHA256.ComputeHash(stream.ToArray());
                     string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
 
-                    string imagePath = profilePath + "/" + hash + ".jpg";
+                    string imagePath = "Content/" + type + "/" + hash + ".jpg";
 
                     if (!File.Exists(imagePath))
                     {
