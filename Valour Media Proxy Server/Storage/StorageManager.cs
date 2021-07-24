@@ -110,7 +110,7 @@ namespace Valour.MPS.Storage
         /// <returns>The path to the image</returns>
         public static async Task<string> SaveImage(Bitmap image, string type)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 using (MemoryStream stream = new MemoryStream())
                 {
@@ -140,34 +140,37 @@ namespace Valour.MPS.Storage
 
         public static async Task<string> SaveContent(IFormFile file, string type)
         {
-            using (MemoryStream stream = new MemoryStream())
+            return await Task.Run(async () =>
             {
-                await file.CopyToAsync(stream);
-
-                // Get hash from file
-                byte[] h = SHA256.ComputeHash(stream.ToArray());
-                string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
-
-                string ext = Path.GetExtension(file.FileName);
-
-                string contentPath = "Content/" + type + "/" + hash + ext;
-                string metaPath =    "Content/" + type + "/" + hash + ext + ".meta";
-
-                if (!File.Exists(contentPath))
+                using (MemoryStream stream = new MemoryStream())
                 {
-                    await EnsureDiskSpace();
+                    await file.CopyToAsync(stream);
 
-                    using (FileStream fileStream = new FileStream("../" + contentPath, FileMode.Create, FileAccess.Write))
+                    // Get hash from file
+                    byte[] h = SHA256.ComputeHash(stream.ToArray());
+                    string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
+
+                    string ext = Path.GetExtension(file.FileName);
+
+                    string contentPath = "Content/" + type + "/" + hash + ext;
+                    string metaPath = "Content/" + type + "/" + hash + ext + ".meta";
+
+                    if (!File.Exists(contentPath))
                     {
-                        stream.WriteTo(fileStream);
+                        await EnsureDiskSpace();
+
+                        using (FileStream fileStream = new FileStream("../" + contentPath, FileMode.Create, FileAccess.Write))
+                        {
+                            stream.WriteTo(fileStream);
+                        }
+
+                        // Write metadata
+                        await File.WriteAllTextAsync("../" + metaPath, file.ContentType);
                     }
 
-                    // Write metadata
-                    await File.WriteAllTextAsync("../" + metaPath, file.ContentType);
+                    return "https://msp.valour.gg/" + contentPath;
                 }
-
-                return "https://msp.valour.gg/" + contentPath;
-            }
+            });
         }
     }
 }
