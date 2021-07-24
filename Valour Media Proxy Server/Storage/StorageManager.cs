@@ -14,20 +14,94 @@ namespace Valour.MPS.Storage
     {
         static SHA256 SHA256 = SHA256.Create();
 
+        public const string _ProfilePath = "../Content/ProfileImage";
+        public const string _ImagePath = "../Content/Image";
+        public const string _FilePath = "../Content/File";
+
         static StorageManager()
         {
-            if (!Directory.Exists("../Content/ProfileImage"))
+            if (!Directory.Exists(_ProfilePath))
             {
-                Directory.CreateDirectory("../Content/ProfileImage");
+                Directory.CreateDirectory(_ProfilePath);
             }
-            if (!Directory.Exists("../Content/Image"))
+            if (!Directory.Exists(_ImagePath))
             {
-                Directory.CreateDirectory("../Content/Image");
+                Directory.CreateDirectory(_ImagePath);
             }
-            if (!Directory.Exists("../Content/File"))
+            if (!Directory.Exists(_FilePath))
             {
-                Directory.CreateDirectory("../Content/File");
+                Directory.CreateDirectory(_FilePath);
             }
+        }
+
+        public static string FormatBytes(long bytes)
+        {
+            if (bytes > 1073741824)
+                return Math.Ceiling(bytes / 1073741824M).ToString("#,### GB");
+            else if (bytes > 1048576)
+                return Math.Ceiling(bytes / 1048576M).ToString("#,### MB");
+            else if (bytes >= 1)
+                return Math.Ceiling(bytes / 1024M).ToString("#,### KB");
+            else if (bytes < 0)
+                return "";
+            else
+                return bytes.ToString("#,### B");
+        }
+
+        public static async Task EnsureDiskSpace()
+        {
+            await Task.Run(() =>
+            {
+                var dir = "../Content";
+                FileInfo fInfo = new FileInfo(dir);
+                DriveInfo driveInfo = new DriveInfo(fInfo.Directory.Root.FullName);
+
+                Console.WriteLine($"Available space: {FormatBytes(driveInfo.AvailableFreeSpace)} / " +
+                                                       $"{FormatBytes(driveInfo.TotalSize)}");
+
+                // If we have at least 20% free space, don't do anything
+                if (driveInfo.AvailableFreeSpace < (driveInfo.TotalSize * 0.8f))
+                {
+                    return;
+                }
+
+                Console.WriteLine($"Detected low space! Clearing drive space.");
+
+                // Delete oldest files (this will SOON properly store in the cloud)
+                // We won't delete profile pictures because those need to last
+                FileSystemInfo[] fileInfo = new DirectoryInfo(_FilePath).GetFileSystemInfos();
+                FileSystemInfo[] imageInfo = new DirectoryInfo(_ImagePath).GetFileSystemInfos();
+
+                int removed = 0;
+
+                // Delete the oldest half of the files
+                foreach (var info in fileInfo.OrderBy(x => x.CreationTimeUtc).Take(fileInfo.Length / 2))
+                {
+                    // Do not delete directories!!!
+                    if (info.Attributes.HasFlag(FileAttributes.Directory))
+                    {
+                        continue;
+                    }
+
+                    info.Delete();
+                    removed++;
+                }
+
+                // Delete the oldest half of the files
+                foreach (var info in imageInfo.OrderBy(x => x.CreationTimeUtc).Take(imageInfo.Length / 2))
+                {
+                    // Do not delete directories!!!
+                    if (info.Attributes.HasFlag(FileAttributes.Directory))
+                    {
+                        continue;
+                    }
+
+                    info.Delete();
+                    removed++;
+                }
+
+                Console.WriteLine($"Removed {removed} files. New free space is {FormatBytes(driveInfo.AvailableFreeSpace)}");
+            });
         }
 
         /// <summary>
@@ -51,6 +125,8 @@ namespace Valour.MPS.Storage
 
                     if (!File.Exists(imagePath))
                     {
+                        await EnsureDiskSpace();
+
                         using (FileStream file = new FileStream("../" + imagePath, FileMode.Create, FileAccess.Write))
                         {
                             stream.WriteTo(file);
@@ -79,6 +155,8 @@ namespace Valour.MPS.Storage
 
                 if (!File.Exists(contentPath))
                 {
+                    await EnsureDiskSpace();
+
                     using (FileStream fileStream = new FileStream("../" + contentPath, FileMode.Create, FileAccess.Write))
                     {
                         stream.WriteTo(fileStream);
