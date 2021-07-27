@@ -52,6 +52,10 @@ namespace Valour_Media_Proxy_Server
 
             app.UseAuthorization();
 
+            app.UseDefaultFiles();
+
+            app.UseStaticFiles();
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();

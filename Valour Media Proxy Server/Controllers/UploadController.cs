@@ -31,7 +31,7 @@ namespace Valour.MPS.Controllers
 
             UploadResponse response = new UploadResponse()
             {
-                Location = location,
+                Url = location,
                 Success = true
             };
 
@@ -66,7 +66,7 @@ namespace Valour.MPS.Controllers
 
             UploadResponse response = new UploadResponse()
             {
-                Location = location,
+                Url = location,
                 Success = true
             };
 
@@ -99,7 +99,7 @@ namespace Valour.MPS.Controllers
 
             UploadResponse response = new UploadResponse()
             {
-                Location = location,
+                Url = location,
                 Success = true
             };
 

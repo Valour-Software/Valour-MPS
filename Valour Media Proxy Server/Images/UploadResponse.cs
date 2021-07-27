@@ -12,6 +12,6 @@ namespace Valour.MPS.Images
         public bool Success { get; set; }
 
         [JsonProperty("location")]
-        public string Location { get; set; }
+        public string Url { get; set; }
     }
 }
