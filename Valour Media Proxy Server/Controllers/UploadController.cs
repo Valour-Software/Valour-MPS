@@ -8,7 +8,9 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Valour.MPS.Config;
 using Valour.MPS.Extensions;
 using Valour.MPS.Images;
 using Valour.MPS.Storage;
@@ -23,8 +25,13 @@ namespace Valour.MPS.Controllers
         // 10MB max size for general pictures
         [RequestSizeLimit(10240000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10240000)]
-        public async Task<IActionResult> SendImage(IFormFile file)
+        public async Task<IActionResult> SendImage(IFormFile file, string auth)
         {
+            if (auth != VMPS_Config.Current.Authorization_Key)
+            {
+                return new UnauthorizedResult();
+            }
+
             Bitmap sourceImage = file.TryGetImage();
             Bitmap destImage = new Bitmap(sourceImage);
             string location = await StorageManager.SaveImage(destImage, "Image");
@@ -54,8 +61,13 @@ namespace Valour.MPS.Controllers
         // 10MB max size for general media
         [RequestSizeLimit(10240000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10240000)]
-        public async Task<IActionResult> SendFile(IFormFile file)
+        public async Task<IActionResult> SendFile(IFormFile file, string auth)
         {
+            if (auth != VMPS_Config.Current.Authorization_Key)
+            {
+                return new UnauthorizedResult();
+            }
+
             // Images should be sent thru /SendImage
             if (ImageContent.Contains(file.ContentType))
             {
@@ -77,8 +89,13 @@ namespace Valour.MPS.Controllers
         // 2MB max size for profile pictures
         [RequestSizeLimit(2621440)]
         [RequestFormLimits(MultipartBodyLengthLimit = 2621440)]
-        public async Task<IActionResult> SendProfileImage(IFormFile file)
+        public async Task<IActionResult> SendProfileImage(IFormFile file, string auth)
         {
+            if (auth != VMPS_Config.Current.Authorization_Key)
+            {
+                return new UnauthorizedResult();
+            }
+
             Bitmap sourceImage = file.TryGetImage();
 
             // If the file is not acceptable

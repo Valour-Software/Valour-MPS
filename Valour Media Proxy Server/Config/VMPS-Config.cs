@@ -1,8 +1,9 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
+using System.Text.Json;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace Valour.MPS.Config
 {
@@ -13,20 +14,28 @@ namespace Valour.MPS.Config
         /// </summary>
         public static VMPS_Config Current;
 
+        public VMPS_Config()
+        {
+            Current = this;
+        }
+
         // Cross-server authorization
 
-        [JsonProperty("auth_key")]
+        [JsonPropertyName("auth_key")]
         public string Authorization_Key { get; set; }
 
         // Database properties
 
-        [JsonProperty("db_address")]
+        [JsonPropertyName("db_address")]
         public string Database_Address { get; set; }
 
-        [JsonProperty("db_user")]
+        [JsonPropertyName("db_user")]
         public string Database_User { get; set; }
 
-        [JsonProperty("db_pass")]
+        [JsonPropertyName("db_pass")]
         public string Database_Password { get; set; }
+
+        [JsonPropertyName("db_name")]
+        public string Database_Name { get; set; }
     }
 }

@@ -1,19 +1,23 @@
+using AspNetCore.Proxy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Valour.MPS.Config;
+using Valour.MPS.Database;
 
 namespace Valour_Media_Proxy_Server
 {
@@ -36,7 +40,7 @@ namespace Valour_Media_Proxy_Server
             if (File.Exists(ConfigPath))
             {
                 string cf_data = File.ReadAllText(ConfigPath);
-                config = JsonConvert.DeserializeObject<VMPS_Config>(cf_data);
+                config = JsonSerializer.Deserialize<VMPS_Config>(cf_data);
             }
             // If no config exists, create an empty one
             else
@@ -49,11 +53,24 @@ namespace Valour_Media_Proxy_Server
                     Database_Password = "dbpass"
                 };
 
-                string cf_data = JsonConvert.SerializeObject(config);
+                string cf_data = JsonSerializer.Serialize(config);
                 File.WriteAllText(ConfigPath, cf_data);
             }
 
-            services.AddControllers();
+            services.AddProxies();
+
+            services.AddDbContextPool<MediaDB>(options =>
+            {
+                options.UseMySql(MediaDB.ConnectionString, ServerVersion.Parse("8.0.20-mysql"), options => options.EnableRetryOnFailure());
+            });
+
+            services.AddControllers().AddJsonOptions(options =>
+               {
+                   options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                   options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
+               }
+            );
+
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Valour_Media_Proxy_Server", Version = "v1" });
