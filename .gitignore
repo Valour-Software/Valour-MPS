@@ -5,6 +5,7 @@
 
 # MPS Content
 Content/*
+vmps_config.json
 
 # User-specific files
 *.rsuser
