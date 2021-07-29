@@ -24,13 +24,14 @@ namespace Valour.MPS.API
             // GET:
             // /proxy/{url}
 
-            app.MapGet("/proxy/{url}", (Func<HttpContext, HttpClient, MediaDB, Task<string>>)(async (HttpContext context, HttpClient client, MediaDB db) =>
+            app.MapGet("/proxy/{url}", (Func<HttpContext, HttpClient, MediaDB, Task>)(async (HttpContext context, HttpClient client, MediaDB db) =>
 
                 {
                     if (!context.Request.RouteValues.TryGetValue("url", out var url))
                     {
                         context.Response.StatusCode = 400;
-                        return "Missing url parameter";
+                        await context.Response.WriteAsync("Missing url parameter");
+                        return;
                     }
 
                     ProxyItem item = await db.ProxyItems.FindAsync(url);
@@ -38,12 +39,13 @@ namespace Valour.MPS.API
                     if (item != null)
                     {
                         await (await client.GetStreamAsync(item.Origin_Url)).CopyToAsync(context.Response.BodyWriter.AsStream());
-                        return "";
+                        return;
                     }
                     else
                     {
                         context.Response.StatusCode = 404;
-                        return "Not found.";
+                        await context.Response.WriteAsync("Not found.");
+                        return;
                     }
                 })
             );
