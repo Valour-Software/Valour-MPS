@@ -52,6 +52,8 @@ namespace Valour.MPS.Controllers
         {
             if (auth != VMPS_Config.Current.Authorization_Key)
             {
+                Console.WriteLine("Failed authorization:");
+                Console.WriteLine(auth);
                 return new UnauthorizedResult();
             }
 
