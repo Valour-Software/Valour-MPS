@@ -42,8 +42,8 @@ namespace Valour.MPS.Images
             // Do heavy calculations in another thread
             await Task.Run(() =>
             {
-                destImage.SetResolution(sourceImage.HorizontalResolution,
-                                        sourceImage.VerticalResolution);
+                //destImage.SetResolution(sourceImage.HorizontalResolution,
+                //                        sourceImage.VerticalResolution);
 
                 // Do resize
                 using (var graphics = Graphics.FromImage(destImage))

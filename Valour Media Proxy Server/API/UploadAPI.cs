@@ -271,7 +271,7 @@ namespace Valour.MPS.API
             {
                 Console.WriteLine("Profile image upload.");
 
-                // Max file size is 10mb
+                // Max file size is 2mb
                 if (context.Request.ContentLength > 2621440)
                 {
                     context.Response.StatusCode = 413;

@@ -60,7 +60,7 @@ namespace Valour.MPS.Storage
                                                        $"{FormatBytes(driveInfo.TotalSize)}");
 
                 // If we have at least 20% free space, don't do anything
-                if (driveInfo.AvailableFreeSpace < (driveInfo.TotalSize * 0.8f))
+                if (driveInfo.AvailableFreeSpace > (driveInfo.TotalSize * 0.2f))
                 {
                     return;
                 }
