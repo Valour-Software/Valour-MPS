@@ -50,6 +50,8 @@ namespace Valour.MPS.API
         {
             app.MapPost("/upload/file", (async (HttpContext context) =>
             {
+                Console.WriteLine("File upload.");
+
                 // Max file size is 10mb
                 if (context.Request.ContentLength > 10240000)
                 {
@@ -155,6 +157,8 @@ namespace Valour.MPS.API
         {
             app.MapPost("/upload/image", (async (HttpContext context) =>
             {
+                Console.WriteLine("Image upload.");
+
                 // Max file size is 10mb
                 if (context.Request.ContentLength > 10240000)
                 {
@@ -265,6 +269,8 @@ namespace Valour.MPS.API
         {
             app.MapPost("/upload/profileimage", (async (HttpContext context) =>
             {
+                Console.WriteLine("Profile image upload.");
+
                 // Max file size is 10mb
                 if (context.Request.ContentLength > 2621440)
                 {
