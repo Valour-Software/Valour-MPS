@@ -21,118 +21,146 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            // GET:
-            // /proxy/{url}
+            ProxyRoute(app);
+            SendUrlRoute(app);
+        }
 
-            app.MapGet("/proxy/{url}", (Func<HttpContext, HttpClient, MediaDB, Task>)(async (HttpContext context, HttpClient client, MediaDB db) =>
+        /// <summary>
+        /// The Proxy route proxies the page that corresponds with the given hash.
+        /// 
+        /// Type:
+        /// GET
+        /// 
+        /// Route:
+        /// /proxy/{url}
+        /// 
+        /// Query Params:
+        /// auth: The authentication key
+        /// 
+        /// </summary>
+        private static void ProxyRoute(WebApplication app)
+        {
+            app.MapGet("/proxy/{url}", (async (HttpContext context, HttpClient client, MediaDB db) =>
 
+            {
+                if (!context.Request.RouteValues.TryGetValue("url", out var url))
                 {
-                    if (!context.Request.RouteValues.TryGetValue("url", out var url))
-                    {
-                        context.Response.StatusCode = 400;
-                        await context.Response.WriteAsync("Missing url parameter");
-                        return;
-                    }
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsync("Missing url parameter");
+                    return;
+                }
 
-                    ProxyItem item = await db.ProxyItems.FindAsync(url);
+                ProxyItem item = await db.ProxyItems.FindAsync(url);
 
-                    if (item != null)
-                    {
-                        await (await client.GetStreamAsync(item.Origin_Url)).CopyToAsync(context.Response.BodyWriter.AsStream());
-                        return;
-                    }
-                    else
-                    {
-                        context.Response.StatusCode = 404;
-                        await context.Response.WriteAsync("Not found.");
-                        return;
-                    }
-                })
+                if (item != null)
+                {
+                    await (await client.GetStreamAsync(item.Origin_Url)).CopyToAsync(context.Response.BodyWriter.AsStream());
+                    return;
+                }
+                else
+                {
+                    context.Response.StatusCode = 404;
+                    await context.Response.WriteAsync("Not found.");
+                    return;
+                }
+            })
             );
+        }
 
-            // POST:
-            // /proxy/sendurl
-            //
-            // url: url hash
-            // auth: authentication key
+        /// <summary>
+        /// The Proxy/SendUrl route allows a client to send a url and be returned a proxy item
+        /// which can then be used to proxy the url in the future
+        /// 
+        /// Type:
+        /// POST
+        /// 
+        /// Route:
+        /// /Proxy/SendUrl
+        /// 
+        /// Query Params:
+        /// url: The url to create proxy data for 
+        /// auth: The authentication key
+        /// 
+        /// </summary>
+        private static void SendUrlRoute(WebApplication app)
+        {
+            app.MapPost("/proxy/sendurl", (async (HttpContext context, HttpClient client, MediaDB db) =>
 
-            app.MapPost("/proxy/sendurl", (Func<HttpContext, HttpClient, MediaDB, Task>)(async (HttpContext context, HttpClient client, MediaDB db) =>
-
+            {
+                if (!context.Request.Query.TryGetValue("url", out var url_in))
                 {
-                    if (!context.Request.Query.TryGetValue("url", out var url_in))
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsync("Missing url parameter");
+                    return;
+                }
+
+                if (!context.Request.Query.TryGetValue("auth", out var auth_in))
+                {
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsync("Missing auth parameter");
+                    return;
+                }
+
+                string url = (string)url_in;
+                string auth = (string)auth_in;
+
+                if (auth != VMPS_Config.Current.Authorization_Key)
+                {
+                    Console.WriteLine("Failed authorization:");
+                    Console.WriteLine(auth);
+
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsync("Unauthorized.");
+                    return;
+                }
+
+                byte[] h = SHA256.ComputeHash(Encoding.UTF8.GetBytes(url));
+                string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
+
+                ProxyItem item = await db.ProxyItems.FindAsync(hash);
+
+                ProxyResponse result = new ProxyResponse();
+
+                if (item == null)
+                {
+                    // Check if end resource is media
+                    var response = await client.GetAsync(url);
+
+                    result.Status = (int)response.StatusCode;
+
+                    // If failure, return the reason and stop
+                    if (!response.IsSuccessStatusCode)
                     {
-                        context.Response.StatusCode = 400;
-                        await context.Response.WriteAsync("Missing url parameter");
+                        result.Error = response.ReasonPhrase;
+                        await result.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
                         return;
                     }
 
-                    if (!context.Request.Query.TryGetValue("auth", out var auth_in))
+                    IEnumerable<string> content_types;
+
+                    response.Content.Headers.TryGetValues("Content-Type", out content_types);
+
+                    string content_type = content_types.FirstOrDefault().Split(';')[0];
+
+                    item = new ProxyItem()
                     {
-                        context.Response.StatusCode = 400;
-                        await context.Response.WriteAsync("Missing auth parameter");
-                        return;
-                    }
+                        Id = hash,
+                        Origin_Url = url,
+                        Mime_Type = content_type
+                    };
 
-                    string url = (string)url_in;
-                    string auth = (string)auth_in;
+                    await db.AddAsync(item);
+                    await db.SaveChangesAsync();
+                }
+                else
+                {
+                    result.Status = 200;
+                }
 
-                    if (auth != VMPS_Config.Current.Authorization_Key)
-                    {
-                        Console.WriteLine("Failed authorization:");
-                        Console.WriteLine(auth);
+                result.Item = item;
 
-                        context.Response.StatusCode = 401;
-                        await context.Response.WriteAsync("Unauthorized.");
-                        return;
-                    }
-
-                    byte[] h = SHA256.ComputeHash(Encoding.UTF8.GetBytes(url));
-                    string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
-
-                    ProxyItem item = await db.ProxyItems.FindAsync(hash);
-
-                    ProxyResponse result = new ProxyResponse();
-
-                    if (item == null)
-                    {
-                        // Check if end resource is media
-                        var response = await client.GetAsync(url);
-
-                        result.Status = (int)response.StatusCode;
-
-                        // If failure, return the reason and stop
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            result.Error = response.ReasonPhrase;
-                            await result.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
-                            return;
-                        }
-
-                        IEnumerable<string> content_types;
-
-                        response.Content.Headers.TryGetValues("Content-Type", out content_types);
-
-                        string content_type = content_types.FirstOrDefault().Split(';')[0];
-
-                        item = new ProxyItem()
-                        {
-                            Id = hash,
-                            Origin_Url = url,
-                            Mime_Type = content_type
-                        };
-
-                        await db.AddAsync(item);
-                        await db.SaveChangesAsync();
-                    }
-                    else
-                    {
-                        result.Status = 200;
-                    }
-
-                    result.Item = item;
-
-                    await result.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
-                })
+                await result.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
+            })
             );
         }
     }

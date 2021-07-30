@@ -8,9 +8,6 @@ namespace Valour.MPS.Images
 {
     public class UploadResponse
     {
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
         [JsonPropertyName("location")]
         public string Url { get; set; }
     }

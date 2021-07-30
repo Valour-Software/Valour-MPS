@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
 using System.Net.Http;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace Valour_Media_Proxy_Server
 {
@@ -37,6 +38,8 @@ namespace Valour_Media_Proxy_Server
 
             // Add API routes
             ProxyAPI.AddRoutes(app);
+            ContentAPI.AddRoutes(app);
+            UploadAPI.AddRoutes(app);
 
             // Run app
             app.Run();
@@ -96,7 +99,13 @@ namespace Valour_Media_Proxy_Server
         {
             var services = builder.Services;
 
-            services.AddSingleton<HttpClient>();
+            services.AddHttpClient();
+
+            services.Configure<FormOptions>(options =>
+            {
+                options.MemoryBufferThreshold = 10240000;
+                options.MultipartBodyLengthLimit = 10240000;
+            });
 
             services.AddDbContextPool<MediaDB>(options =>
             {
