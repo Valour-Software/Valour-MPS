@@ -133,7 +133,7 @@ namespace Valour.MPS.Storage
                         }
                     }
 
-                    return "https://msp.valour.gg/" + imagePath;
+                    return "https://vmps.valour.gg/" + imagePath;
                 }
             });
         }

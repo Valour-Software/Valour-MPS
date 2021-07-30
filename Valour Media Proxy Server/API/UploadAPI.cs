@@ -294,6 +294,8 @@ namespace Valour.MPS.API
 
                 int fileCount = context.Request.Form.Files.Count;
 
+                Console.WriteLine("Count: " + fileCount);
+
                 if (fileCount == 0)
                 {
                     context.Response.StatusCode = 404;

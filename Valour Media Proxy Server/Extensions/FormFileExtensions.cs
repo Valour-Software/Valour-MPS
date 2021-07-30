@@ -18,6 +18,8 @@ namespace Valour.MPS.Extensions
 
         public static Bitmap TryGetImage(this IFormFile postedFile)
         {
+            Console.WriteLine("Image type: " + postedFile.ContentType.ToLower());
+
             //-------------------------------------------
             //  Check the image mime types
             //-------------------------------------------
