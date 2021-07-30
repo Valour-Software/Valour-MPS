@@ -51,8 +51,10 @@ namespace Valour.MPS.Extensions
             {
                 if (!postedFile.OpenReadStream().CanRead)
                 {
+                    Console.WriteLine("Failed to read stream.");
                     return null;
                 }
+
                 //------------------------------------------
                 //check whether the image size exceeding the limit or not
                 //------------------------------------------ 
@@ -66,6 +68,8 @@ namespace Valour.MPS.Extensions
                     return null;
                 }
 
+                Console.WriteLine("Image size: " + postedFile.Length);
+
                 byte[] buffer = new byte[ImageMinimumBytes];
                 postedFile.OpenReadStream().Read(buffer, 0, ImageMinimumBytes);
                 string content = System.Text.Encoding.UTF8.GetString(buffer);
@@ -75,8 +79,9 @@ namespace Valour.MPS.Extensions
                     return null;
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 return null;
             }
 
@@ -90,8 +95,9 @@ namespace Valour.MPS.Extensions
                 var bitmap = new Bitmap(postedFile.OpenReadStream());
                 return bitmap;
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 return null;
             }
             finally
