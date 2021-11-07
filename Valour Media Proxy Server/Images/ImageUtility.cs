@@ -68,5 +68,41 @@ namespace Valour.MPS.Images
 
             return destImage;
         }
+
+        public static async Task<Bitmap> ConvertToPlanetImage(Bitmap sourceImage)
+        {
+            // Destination rect and bitmap
+            var destRect = new Rectangle(0, 0, 256, 256);
+            var destImage = new Bitmap(512, 512);
+
+            // Do heavy calculations in another thread
+            await Task.Run(() =>
+            {
+                //destImage.SetResolution(sourceImage.HorizontalResolution,
+                //                        sourceImage.VerticalResolution);
+
+                // Do resize
+                using (var graphics = Graphics.FromImage(destImage))
+                {
+                    graphics.CompositingMode = CompositingMode.SourceCopy;
+                    graphics.CompositingQuality = CompositingQuality.HighQuality;
+                    graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    graphics.SmoothingMode = SmoothingMode.HighQuality;
+                    graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    using (var wrapMode = new ImageAttributes())
+                    {
+                        wrapMode.SetWrapMode(WrapMode.TileFlipX);
+                        graphics.DrawImage(sourceImage, destRect, 0, 0,
+                                           sourceImage.Width, sourceImage.Height,
+                                           GraphicsUnit.Pixel, wrapMode);
+                    }
+                }
+
+
+            });
+
+            return destImage;
+        }
     }
 }

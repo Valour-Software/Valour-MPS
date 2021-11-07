@@ -14,6 +14,7 @@ namespace Valour.MPS.Storage
     {
         static SHA256 SHA256 = SHA256.Create();
 
+        public const string _PlanetPath = "../Content/Planet";
         public const string _ProfilePath = "../Content/ProfileImage";
         public const string _ImagePath = "../Content/Image";
         public const string _FilePath = "../Content/File";

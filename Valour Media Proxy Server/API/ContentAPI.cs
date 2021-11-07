@@ -16,8 +16,10 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            FileRoute(app);
-            ProfileImageRoute(app);
+            app.MapGet("/content/file/{id}", FileRoute);
+            app.MapGet("/content/profileimage/{id}", ProfileImageRoute);
+            app.MapGet("/content/image/{id}", ImageRoute);
+
             ImageRoute(app);
         }
 
@@ -31,58 +33,55 @@ namespace Valour.MPS.API
         /// /content/file/{id}
         /// 
         /// </summary>
-        private static void FileRoute(WebApplication app)
+        private static async Task FileRoute(IMemoryCache cache, HttpContext context, MediaDB db)
         {
-            app.MapGet("/content/file/{id}", (async (IMemoryCache cache, HttpContext context, MediaDB db) =>
+            if (!context.Request.RouteValues.TryGetValue("id", out var id))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Missing id parameter");
+                return;
+            }
+
+            byte[] bytes;
+            string meta = "";
+
+            // Get cached file
+            if (!cache.TryGetValue(id, out bytes))
+            {
+                string path = "../Content/File/" + id;
+
+                if (!File.Exists(path))
                 {
-                    if (!context.Request.RouteValues.TryGetValue("id", out var id))
-                    {
-                        context.Response.StatusCode = 400;
-                        await context.Response.WriteAsync("Missing id parameter");
-                        return;
-                    }
+                    context.Response.StatusCode = 404;
+                    await context.Response.WriteAsync("File could not be found.");
+                    return;
+                }
 
-                    byte[] bytes;
-                    string meta = "";
+                bytes = await File.ReadAllBytesAsync(path);
 
-                    // Get cached file
-                    if (!cache.TryGetValue(id, out bytes))
-                    {
-                        string path = "../Content/File/" + id;
+                cache.Set(id, bytes);
+            }
 
-                        if (!File.Exists(path))
-                        {
-                            context.Response.StatusCode = 404;
-                            await context.Response.WriteAsync("File could not be found.");
-                            return;
-                        }
+            // Get cached meta
+            if (!cache.TryGetValue(id + "-meta", out meta))
+            {
+                string path = "../Content/File/" + id + ".meta";
 
-                        bytes = await File.ReadAllBytesAsync(path);
+                if (!File.Exists(path))
+                {
+                    context.Response.StatusCode = 404;
+                    await context.Response.WriteAsync("File meta could not be found.");
+                    return;
+                }
 
-                        cache.Set(id, bytes);
-                    }
+                meta = await File.ReadAllTextAsync(path);
 
-                    // Get cached meta
-                    if (!cache.TryGetValue(id + "-meta", out meta))
-                    {
-                        string path = "../Content/File/" + id + ".meta";
+                cache.Set(id + "-meta", bytes);
+            }
 
-                        if (!File.Exists(path))
-                        {
-                            context.Response.StatusCode = 404;
-                            await context.Response.WriteAsync("File meta could not be found.");
-                            return;
-                        }
+            context.Response.ContentType = meta;
+            await context.Response.BodyWriter.WriteAsync(bytes);
 
-                        meta = await File.ReadAllTextAsync(path);
-
-                        cache.Set(id + "-meta", bytes);
-                    }
-
-                    context.Response.ContentType = meta;
-                    await context.Response.BodyWriter.WriteAsync(bytes);
-                })
-            );
         }
 
         /// <summary>
@@ -95,29 +94,26 @@ namespace Valour.MPS.API
         /// /content/profileimage/{id}
         /// 
         /// </summary>
-        private static void ProfileImageRoute(WebApplication app)
+        private static async Task ProfileImageRoute(IMemoryCache cache, HttpContext context, MediaDB db)
         {
-            app.MapGet("/content/profileimage/{id}", (async (IMemoryCache cache, HttpContext context, MediaDB db) =>
+            if (!context.Request.RouteValues.TryGetValue("id", out var id))
             {
-                if (!context.Request.RouteValues.TryGetValue("id", out var id))
-                {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync("Missing id parameter");
-                    return;
-                }
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Missing id parameter");
+                return;
+            }
 
-                byte[] bytes = await GetImageBytes(cache, (string)id, "ProfileImage");
+            byte[] bytes = await GetImageBytes(cache, (string)id, "ProfileImage");
 
-                if (bytes == null)
-                {
-                    context.Response.StatusCode = 404;
-                    await context.Response.WriteAsync("Could not find profile image");
-                    return;
-                }
+            if (bytes == null)
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Could not find profile image");
+                return;
+            }
 
-                context.Response.ContentType = "image/jpeg";
-                await context.Response.BodyWriter.WriteAsync(bytes);
-            }));
+            context.Response.ContentType = "image/jpeg";
+            await context.Response.BodyWriter.WriteAsync(bytes);
         }
 
         /// <summary>
@@ -130,11 +126,8 @@ namespace Valour.MPS.API
         /// /content/image/{id}
         /// 
         /// </summary>
-        private static void ImageRoute(WebApplication app)
-        {
-            app.MapGet("/content/image/{id}", (async (IMemoryCache cache, HttpContext context, MediaDB db) =>
-            {
-                if (!context.Request.RouteValues.TryGetValue("id", out var id))
+        private static async Task ImageRoute(IMemoryCache cache, HttpContext context, MediaDB db){
+            if (!context.Request.RouteValues.TryGetValue("id", out var id))
                 {
                     context.Response.StatusCode = 400;
                     await context.Response.WriteAsync("Missing id parameter");
@@ -152,7 +145,6 @@ namespace Valour.MPS.API
 
                 context.Response.ContentType = "image/jpeg";
                 await context.Response.BodyWriter.WriteAsync(bytes);
-            }));
         }
 
         ////////////////////
