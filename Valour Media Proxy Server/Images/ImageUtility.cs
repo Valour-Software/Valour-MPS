@@ -35,9 +35,11 @@ namespace Valour.MPS.Images
 
         public static async Task<Bitmap> ConvertToProfileImage(Bitmap sourceImage)
         {
+            int finSize = Math.Min(sourceImage.Width, sourceImage.Height, 256);
+
             // Destination rect and bitmap
-            var destRect = new Rectangle(0, 0, 256, 256);
-            var destImage = new Bitmap(256, 256);
+            var destRect = new Rectangle(0, 0, finSize, finSize);
+            var destImage = new Bitmap(finSize, finSize);
 
             // Do heavy calculations in another thread
             await Task.Run(() =>
@@ -71,9 +73,12 @@ namespace Valour.MPS.Images
 
         public static async Task<Bitmap> ConvertToPlanetImage(Bitmap sourceImage)
         {
+
+            int finSize = Math.Min(sourceImage.Width, sourceImage.Height, 512);
+
             // Destination rect and bitmap
-            var destRect = new Rectangle(0, 0, 256, 256);
-            var destImage = new Bitmap(512, 512);
+            var destRect = new Rectangle(0, 0, finSize, finSize);
+            var destImage = new Bitmap(finSize, finSize);
 
             // Do heavy calculations in another thread
             await Task.Run(() =>
