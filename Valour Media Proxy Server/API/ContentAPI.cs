@@ -20,8 +20,6 @@ namespace Valour.MPS.API
             app.MapGet("/content/profileimage/{id}", ProfileImageRoute);
             app.MapGet("/content/planetimage/{id}", PlanetImageRoute);
             app.MapGet("/content/image/{id}", ImageRoute);
-
-            ImageRoute(app);
         }
 
         /// <summary>

@@ -151,7 +151,7 @@ namespace Valour.MPS.API
         /// Images
         /// 
         /// </summary>
-        private static void ImageRoute(HttpContext context)
+        private static async Task ImageRoute(HttpContext context)
         {
             Console.WriteLine("Image upload.");
 
@@ -260,7 +260,7 @@ namespace Valour.MPS.API
         /// Image
         /// 
         /// </summary>
-        private static void ProfileImageRoute(HttpContext context)
+        private static async Task ProfileImageRoute(HttpContext context)
         {
             Console.WriteLine("Profile image upload.");
 
@@ -346,9 +346,9 @@ namespace Valour.MPS.API
         /// Image
         /// 
         /// </summary>
-        private static void PlanetImageRoute(HttpContext context)
+        private static async Task PlanetImageRoute(HttpContext context)
         {
-            Console.WriteLine("Profile image upload.");
+            Console.WriteLine("Planet image upload.");
 
             // Max file size is 8mb
             if (context.Request.ContentLength > 8388608)
