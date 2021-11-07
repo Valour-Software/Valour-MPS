@@ -25,9 +25,10 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            FileRoute(app);
-            ImageRoute(app);
-            ProfileImageRoute(app);
+            app.MapPost("/upload/file", FileRoute);
+            app.MapPost("/upload/image", ImageRoute);
+            app.MapPost("/upload/profileimage", ProfileImageRoute);
+            app.MapPost("/upload/planetimage", PlanetImageRoute);
         }
 
         /// <summary>
@@ -46,95 +47,92 @@ namespace Valour.MPS.API
         /// General files
         /// 
         /// </summary>
-        private static void FileRoute(WebApplication app)
+        private static async Task FileRoute(HttpContext context)
         {
-            app.MapPost("/upload/file", (async (HttpContext context) =>
-            {
-                Console.WriteLine("File upload.");
+            Console.WriteLine("File upload.");
 
-                // Max file size is 10mb
-                if (context.Request.ContentLength > 10240000)
+            // Max file size is 10mb
+            if (context.Request.ContentLength > 10240000)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Max file size is 10mb");
+                return;
+            }
+
+            if (!context.Request.Query.TryGetValue("auth", out var auth))
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized. Include auth.");
+                return;
+            }
+            else if (auth != VMPS_Config.Current.Authorization_Key)
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized.");
+                return;
+            }
+
+            if (ImageContent.Contains(context.Request.ContentType))
+            {
+                context.Response.StatusCode = 415;
+                await context.Response.WriteAsync("Use /upload/image for images");
+                return;
+            }
+
+            int fileCount = context.Request.Form.Files.Count;
+
+            if (fileCount == 0)
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Please attach a file");
+                return;
+            }
+
+            if (fileCount > 5)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Please attach less than 5 files");
+                return;
+            }
+
+            long totalSize = 0;
+
+            string[] uploads = new string[fileCount];
+
+            var files = context.Request.Form.Files;
+
+            // Safety checks
+            foreach (var file in files)
+            {
+                totalSize += file.Length;
+
+                if (totalSize > 10240000)
                 {
                     context.Response.StatusCode = 413;
-                    await context.Response.WriteAsync("Max file size is 10mb");
+                    await context.Response.WriteAsync("Max total size is 10mb");
                     return;
                 }
 
-                if (!context.Request.Query.TryGetValue("auth", out var auth))
-                {
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsync("Unauthorized. Include auth.");
-                    return;
-                }
-                else if (auth != VMPS_Config.Current.Authorization_Key)
-                {
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsync("Unauthorized.");
-                    return;
-                }
-
-                if (ImageContent.Contains(context.Request.ContentType))
+                if (ImageContent.Contains(file.ContentType))
                 {
                     context.Response.StatusCode = 415;
                     await context.Response.WriteAsync("Use /upload/image for images");
                     return;
                 }
+            }
 
-                int fileCount = context.Request.Form.Files.Count;
+            int i = 0;
 
-                if (fileCount == 0)
-                {
-                    context.Response.StatusCode = 404;
-                    await context.Response.WriteAsync("Please attach a file");
-                    return;
-                }
+            foreach (var file in files)
+            {
+                string location = await StorageManager.SaveContent(file, "File");
 
-                if (fileCount > 5)
-                {
-                    context.Response.StatusCode = 413;
-                    await context.Response.WriteAsync("Please attach less than 5 files");
-                    return;
-                }
+                uploads[i] = location;
 
-                long totalSize = 0;
+                i++;
+            }
 
-                string[] uploads = new string[fileCount];
-
-                var files = context.Request.Form.Files;
-
-                // Safety checks
-                foreach (var file in files)
-                {
-                    totalSize += file.Length;
-
-                    if (totalSize > 10240000)
-                    {
-                        context.Response.StatusCode = 413;
-                        await context.Response.WriteAsync("Max total size is 10mb");
-                        return;
-                    }
-
-                    if (ImageContent.Contains(file.ContentType))
-                    {
-                        context.Response.StatusCode = 415;
-                        await context.Response.WriteAsync("Use /upload/image for images");
-                        return;
-                    }
-                }
-
-                int i = 0;
-
-                foreach (var file in files)
-                {
-                    string location = await StorageManager.SaveContent(file, "File");
-
-                    uploads[i] = location;
-
-                    i++;
-                }
-
-                await uploads.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
-            }));
+            await uploads.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
         }
 
         /// <summary>
@@ -153,100 +151,97 @@ namespace Valour.MPS.API
         /// Images
         /// 
         /// </summary>
-        private static void ImageRoute(WebApplication app)
+        private static void ImageRoute(HttpContext context)
         {
-            app.MapPost("/upload/image", (async (HttpContext context) =>
+            Console.WriteLine("Image upload.");
+
+            // Max file size is 10mb
+            if (context.Request.ContentLength > 10240000)
             {
-                Console.WriteLine("Image upload.");
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Max file size is 10mb");
+                return;
+            }
 
-                // Max file size is 10mb
-                if (context.Request.ContentLength > 10240000)
+            if (!context.Request.Query.TryGetValue("auth", out var auth))
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized. Include auth.");
+                return;
+            }
+            else if (auth != VMPS_Config.Current.Authorization_Key)
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized.");
+                return;
+            }
+
+            int fileCount = context.Request.Form.Files.Count;
+
+            if (fileCount == 0)
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Please attach an image");
+                return;
+            }
+
+            if (fileCount > 5)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Please attach less than 5 images");
+                return;
+            }
+
+            long totalSize = 0;
+
+            string[] uploads = new string[fileCount];
+            Bitmap[] bitmaps = new Bitmap[fileCount];
+
+            int i = 0;
+
+            var files = context.Request.Form.Files;
+
+            // Safety checks
+            foreach (var file in files)
+            {
+                totalSize += file.Length;
+
+                if (totalSize > 10240000)
                 {
                     context.Response.StatusCode = 413;
-                    await context.Response.WriteAsync("Max file size is 10mb");
+                    await context.Response.WriteAsync("Max total size is 10mb");
                     return;
                 }
 
-                if (!context.Request.Query.TryGetValue("auth", out var auth))
+                if (!ImageContent.Contains(file.ContentType))
                 {
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsync("Unauthorized. Include auth.");
-                    return;
-                }
-                else if (auth != VMPS_Config.Current.Authorization_Key)
-                {
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsync("Unauthorized.");
+                    context.Response.StatusCode = 415;
+                    await context.Response.WriteAsync("Please only upload images");
                     return;
                 }
 
-                int fileCount = context.Request.Form.Files.Count;
+                var bitmap = file.TryGetImage();
 
-                if (fileCount == 0)
+                if (bitmap == null)
                 {
-                    context.Response.StatusCode = 404;
-                    await context.Response.WriteAsync("Please attach an image");
+                    context.Response.StatusCode = 415;
+                    await context.Response.WriteAsync("Image malformed");
                     return;
                 }
 
-                if (fileCount > 5)
-                {
-                    context.Response.StatusCode = 413;
-                    await context.Response.WriteAsync("Please attach less than 5 images");
-                    return;
-                }
+                // Needs to be copied to prevent breakage
+                bitmaps[i] = new Bitmap(bitmap);
+            }
 
-                long totalSize = 0;
+            i = 0;
 
-                string[] uploads = new string[fileCount];
-                Bitmap[] bitmaps = new Bitmap[fileCount];
+            foreach (var file in files)
+            {
+                uploads[i] = await StorageManager.SaveImage(bitmaps[i], "Image");
+                i++;
+            }
 
-                int i = 0;
-
-                var files = context.Request.Form.Files;
-
-                // Safety checks
-                foreach (var file in files)
-                {
-                    totalSize += file.Length;
-
-                    if (totalSize > 10240000)
-                    {
-                        context.Response.StatusCode = 413;
-                        await context.Response.WriteAsync("Max total size is 10mb");
-                        return;
-                    }
-
-                    if (!ImageContent.Contains(file.ContentType))
-                    {
-                        context.Response.StatusCode = 415;
-                        await context.Response.WriteAsync("Please only upload images");
-                        return;
-                    }
-
-                    var bitmap = file.TryGetImage();
-
-                    if (bitmap == null)
-                    {
-                        context.Response.StatusCode = 415;
-                        await context.Response.WriteAsync("Image malformed");
-                        return;
-                    }
-
-                    // Needs to be copied to prevent breakage
-                    bitmaps[i] = new Bitmap(bitmap);
-                }
-
-                i = 0;
-
-                foreach (var file in files)
-                {
-                    uploads[i] = await StorageManager.SaveImage(bitmaps[i], "Image");
-                    i++;
-                }
-
-                await uploads.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
-            }));
+            await uploads.SerializeJsonAsync(context.Response.BodyWriter.AsStream());
         }
 
         /// <summary>
@@ -265,77 +260,160 @@ namespace Valour.MPS.API
         /// Image
         /// 
         /// </summary>
-        private static void ProfileImageRoute(WebApplication app)
+        private static void ProfileImageRoute(HttpContext context)
         {
-            app.MapPost("/upload/profileimage", (async (HttpContext context) =>
+            Console.WriteLine("Profile image upload.");
+
+            // Max file size is 2mb
+            if (context.Request.ContentLength > 2621440)
             {
-                Console.WriteLine("Profile image upload.");
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Max file size is 2mb");
+                return;
+            }
 
-                // Max file size is 2mb
-                if (context.Request.ContentLength > 2621440)
-                {
-                    context.Response.StatusCode = 413;
-                    await context.Response.WriteAsync("Max file size is 2mb");
-                    return;
-                }
+            if (!context.Request.Query.TryGetValue("auth", out var auth))
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized. Include auth.");
+                return;
+            }
+            else if (auth != VMPS_Config.Current.Authorization_Key)
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized.");
+                return;
+            }
 
-                if (!context.Request.Query.TryGetValue("auth", out var auth))
-                {
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsync("Unauthorized. Include auth.");
-                    return;
-                }
-                else if (auth != VMPS_Config.Current.Authorization_Key)
-                {
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsync("Unauthorized.");
-                    return;
-                }
+            int fileCount = context.Request.Form.Files.Count;
 
-                int fileCount = context.Request.Form.Files.Count;
+            Console.WriteLine("Count: " + fileCount);
 
-                Console.WriteLine("Count: " + fileCount);
+            if (fileCount == 0)
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Please attach an image");
+                return;
+            }
 
-                if (fileCount == 0)
-                {
-                    context.Response.StatusCode = 404;
-                    await context.Response.WriteAsync("Please attach an image");
-                    return;
-                }
+            if (fileCount > 1)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Please attach one image only");
+                return;
+            }
 
-                if (fileCount > 1)
-                {
-                    context.Response.StatusCode = 413;
-                    await context.Response.WriteAsync("Please attach one image only");
-                    return;
-                }
+            var file = context.Request.Form.Files[0];
 
-                var file = context.Request.Form.Files[0];
+            if (file.Length > 2621440)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Max total size is 2mb");
+                return;
+            }
 
-                if (file.Length > 2621440)
-                {
-                    context.Response.StatusCode = 413;
-                    await context.Response.WriteAsync("Max total size is 2mb");
-                    return;
-                }
+            var bitmap = file.TryGetImage();
 
-                var bitmap = file.TryGetImage();
+            if (bitmap == null)
+            {
+                context.Response.StatusCode = 415;
+                await context.Response.WriteAsync("Image malformed");
+                return;
+            }
 
-                if (bitmap == null)
-                {
-                    context.Response.StatusCode = 415;
-                    await context.Response.WriteAsync("Image malformed");
-                    return;
-                }
+            // Resize image to pfp scale
+            Bitmap formattedImage = await ImageUtility.ConvertToProfileImage(bitmap);
 
-                // Resize image to pfp scale
-                Bitmap formattedImage = await ImageUtility.ConvertToProfileImage(bitmap);
+            string location = await StorageManager.SaveImage(formattedImage, "ProfileImage");
 
-                string location = await StorageManager.SaveImage(formattedImage, "ProfileImage");
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(location);
+        }
 
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync(location);
-            }));
+        /// <summary>
+        /// The PlanetImage route allows the upload of planet images (icons)
+        /// 
+        /// Type:
+        /// POST
+        /// 
+        /// Route:
+        /// /upload/planetimage
+        /// 
+        /// Query parameters:
+        /// auth: Authentication key
+        /// 
+        /// Form data:
+        /// Image
+        /// 
+        /// </summary>
+        private static void PlanetImageRoute(HttpContext context)
+        {
+            Console.WriteLine("Profile image upload.");
+
+            // Max file size is 8mb
+            if (context.Request.ContentLength > 8388608)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Max file size is 8mb");
+                return;
+            }
+
+            if (!context.Request.Query.TryGetValue("auth", out var auth))
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized. Include auth.");
+                return;
+            }
+            else if (auth != VMPS_Config.Current.Authorization_Key)
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("Unauthorized.");
+                return;
+            }
+
+            int fileCount = context.Request.Form.Files.Count;
+
+            Console.WriteLine("Count: " + fileCount);
+
+            if (fileCount == 0)
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Please attach an image");
+                return;
+            }
+
+            if (fileCount > 1)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Please attach one image only");
+                return;
+            }
+
+            var file = context.Request.Form.Files[0];
+
+            if (file.Length > 8388608)
+            {
+                context.Response.StatusCode = 413;
+                await context.Response.WriteAsync("Max total size is 8mb");
+                return;
+            }
+
+            var bitmap = file.TryGetImage();
+
+            if (bitmap == null)
+            {
+                context.Response.StatusCode = 415;
+                await context.Response.WriteAsync("Image malformed");
+                return;
+            }
+
+            // Resize image to pfp scale
+            Bitmap formattedImage = await ImageUtility.ConvertToPlanetImage(bitmap);
+
+            string location = await StorageManager.SaveImage(formattedImage, "PlanetImage");
+
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(location);
         }
 
         ////////////////////

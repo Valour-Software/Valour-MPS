@@ -18,6 +18,7 @@ namespace Valour.MPS.API
         {
             app.MapGet("/content/file/{id}", FileRoute);
             app.MapGet("/content/profileimage/{id}", ProfileImageRoute);
+            app.MapGet("/content/planetimage/{id}", PlanetImageRoute);
             app.MapGet("/content/image/{id}", ImageRoute);
 
             ImageRoute(app);
@@ -109,6 +110,38 @@ namespace Valour.MPS.API
             {
                 context.Response.StatusCode = 404;
                 await context.Response.WriteAsync("Could not find profile image");
+                return;
+            }
+
+            context.Response.ContentType = "image/jpeg";
+            await context.Response.BodyWriter.WriteAsync(bytes);
+        }
+
+        /// <summary>
+        /// The PlanetImage route returns the profile image associated with the given id.
+        /// 
+        /// Type:
+        /// GET
+        /// 
+        /// Route:
+        /// /content/planetimage/{id}
+        /// 
+        /// </summary>
+        private static async Task PlanetImageRoute(IMemoryCache cache, HttpContext context, MediaDB db)
+        {
+            if (!context.Request.RouteValues.TryGetValue("id", out var id))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Missing id parameter");
+                return;
+            }
+
+            byte[] bytes = await GetImageBytes(cache, (string)id, "PlanetImage");
+
+            if (bytes == null)
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Could not find planet image");
                 return;
             }
 
