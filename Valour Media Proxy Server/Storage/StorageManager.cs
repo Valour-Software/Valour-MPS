@@ -123,7 +123,7 @@ namespace Valour.MPS.Storage
             type = type.ToLower();
 
             // Get hash from image
-            byte[] h = SHA256.ComputeHash(ms);
+            byte[] h = SHA256.ComputeHash(ms.GetBuffer());
             string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
 
             string filePath = "Content/" + type + "/" + hash + ext;
