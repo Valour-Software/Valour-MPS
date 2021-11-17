@@ -83,11 +83,11 @@ namespace Valour.MPS.API
                     max_length = 10240000;
                     should_be_image = true;
                     break;
-                case "profileimage":
+                case "profile":
                     max_length = 2621440;
                     should_be_image = true;
                     break;
-                case "planetimage":
+                case "planet":
                     max_length = 8388608;
                     should_be_image = true;
                     break;
