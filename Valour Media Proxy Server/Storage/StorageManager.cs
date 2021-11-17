@@ -1,9 +1,13 @@
 ﻿using Microsoft.AspNetCore.Http;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Valour.MPS.Images;
@@ -14,25 +18,30 @@ namespace Valour.MPS.Storage
     {
         static SHA256 SHA256 = SHA256.Create();
 
-        public const string _PlanetPath = "../Content/Planet";
-        public const string _ProfilePath = "../Content/ProfileImage";
-        public const string _ImagePath = "../Content/Image";
-        public const string _FilePath = "../Content/File";
+        public static readonly List<string> _ContentTypes = new()
+        {
+            "planet",
+            "profile",
+            "image",
+            "file"
+        };
+
+        public static JpegEncoder jpegEncoder = new()
+        {
+            Quality = 80,
+            Subsample = JpegSubsample.Ratio444
+        };
+
+        public static PngEncoder pngEncoder = new()
+        {
+            CompressionLevel = PngCompressionLevel.BestCompression
+        };
 
         static StorageManager()
         {
-            if (!Directory.Exists(_ProfilePath))
-            {
-                Directory.CreateDirectory(_ProfilePath);
-            }
-            if (!Directory.Exists(_ImagePath))
-            {
-                Directory.CreateDirectory(_ImagePath);
-            }
-            if (!Directory.Exists(_FilePath))
-            {
-                Directory.CreateDirectory(_FilePath);
-            }
+            foreach (string type in _ContentTypes)
+                if (!Directory.Exists("../Content/" + type))
+                    Directory.CreateDirectory("../Content/" + type);
         }
 
         public static string FormatBytes(long bytes)
@@ -69,9 +78,9 @@ namespace Valour.MPS.Storage
                 Console.WriteLine($"Detected low space! Clearing drive space.");
 
                 // Delete oldest files (this will SOON properly store in the cloud)
-                // We won't delete profile pictures because those need to last
-                FileSystemInfo[] fileInfo = new DirectoryInfo(_FilePath).GetFileSystemInfos();
-                FileSystemInfo[] imageInfo = new DirectoryInfo(_ImagePath).GetFileSystemInfos();
+                // We won't delete profile pictures and planet icons because those need to last
+                FileSystemInfo[] fileInfo = new DirectoryInfo("../Content/profile").GetFileSystemInfos();
+                FileSystemInfo[] imageInfo = new DirectoryInfo("../Content/planet").GetFileSystemInfos();
 
                 int removed = 0;
 
@@ -109,69 +118,32 @@ namespace Valour.MPS.Storage
         /// Saves the given image
         /// </summary>
         /// <returns>The path to the image</returns>
-        public static async Task<string> SaveImage(Bitmap image, string type)
+        public static async Task<string> Save(MemoryStream ms, string content_type, string ext, string type)
         {
-            return await Task.Run(async () =>
+            type = type.ToLower();
+
+            // Get hash from image
+            byte[] h = SHA256.ComputeHash(ms);
+            string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
+
+            string filePath = "Content/" + type + "/" + hash + ext;
+            string metaPath = "Content/" + type + "/" + hash + ext + ".meta";
+
+            if (!File.Exists(filePath))
             {
-                using (MemoryStream stream = new MemoryStream())
+                await EnsureDiskSpace();
+
+                using (FileStream fs = new("../" + filePath, FileMode.Create, FileAccess.Write))
                 {
-                    image.Save(stream, ImageUtility.jpegEncoder,
-                                       ImageUtility.profileEncodeParams);
-
-                    // Get hash from image
-                    byte[] h = SHA256.ComputeHash(stream.ToArray());
-                    string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
-
-                    string imagePath = "Content/" + type + "/" + hash + ".jpg";
-
-                    if (!File.Exists(imagePath))
-                    {
-                        await EnsureDiskSpace();
-
-                        using (FileStream file = new FileStream("../" + imagePath, FileMode.Create, FileAccess.Write))
-                        {
-                            stream.WriteTo(file);
-                        }
-                    }
-
-                    return "https://vmps.valour.gg/" + imagePath;
+                    ms.WriteTo(fs);
                 }
-            });
-        }
 
-        public static async Task<string> SaveContent(IFormFile file, string type)
-        {
-            return await Task.Run(async () =>
-            {
-                using (MemoryStream stream = new MemoryStream())
-                {
-                    await file.CopyToAsync(stream);
+                // Write metadata
+                await File.WriteAllTextAsync("../" + metaPath, $"{content_type}\n{ext}");
+            }
 
-                    // Get hash from file
-                    byte[] h = SHA256.ComputeHash(stream.ToArray());
-                    string hash = BitConverter.ToString(h).Replace("-", "").ToLower();
-
-                    string ext = Path.GetExtension(file.FileName);
-
-                    string contentPath = "Content/" + type + "/" + hash + ext;
-                    string metaPath = "Content/" + type + "/" + hash + ext + ".meta";
-
-                    if (!File.Exists(contentPath))
-                    {
-                        await EnsureDiskSpace();
-
-                        using (FileStream fileStream = new FileStream("../" + contentPath, FileMode.Create, FileAccess.Write))
-                        {
-                            stream.WriteTo(fileStream);
-                        }
-
-                        // Write metadata
-                        await File.WriteAllTextAsync("../" + metaPath, file.ContentType);
-                    }
-
-                    return "https://msp.valour.gg/" + contentPath;
-                }
-            });
+            return "https://vmps.valour.gg/" + filePath;
+            
         }
     }
 }

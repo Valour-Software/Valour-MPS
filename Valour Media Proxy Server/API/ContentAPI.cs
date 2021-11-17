@@ -16,173 +16,81 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            app.MapGet("/content/file/{id}", FileRoute);
-            app.MapGet("/content/profileimage/{id}", ProfileImageRoute);
-            app.MapGet("/content/planetimage/{id}", PlanetImageRoute);
-            app.MapGet("/content/image/{id}", ImageRoute);
+            app.MapGet("/content/{type}/{id}", GetRoute);
         }
 
-        /// <summary>
-        /// The File route returns the file associated with the given id.
-        /// 
-        /// Type:
-        /// GET
-        /// 
-        /// Route:
-        /// /content/file/{id}
-        /// 
-        /// </summary>
-        private static async Task FileRoute(IMemoryCache cache, HttpContext context, MediaDB db)
+        private static async Task GetRoute(IMemoryCache cache, HttpContext context, MediaDB db,
+             string type, string id)
         {
-            if (!context.Request.RouteValues.TryGetValue("id", out var id))
+            if (string.IsNullOrWhiteSpace(type))
             {
                 context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Missing id parameter");
+                await context.Response.WriteAsync("Missing type");
                 return;
             }
 
-            byte[] bytes;
-            string meta = "";
-
-            // Get cached file
-            if (!cache.TryGetValue(id, out bytes))
-            {
-                string path = "../Content/File/" + id;
-
-                if (!File.Exists(path))
-                {
-                    context.Response.StatusCode = 404;
-                    await context.Response.WriteAsync("File could not be found.");
-                    return;
-                }
-
-                bytes = await File.ReadAllBytesAsync(path);
-
-                cache.Set(id, bytes);
-            }
-
-            // Get cached meta
-            if (!cache.TryGetValue(id + "-meta", out meta))
-            {
-                string path = "../Content/File/" + id + ".meta";
-
-                if (!File.Exists(path))
-                {
-                    context.Response.StatusCode = 404;
-                    await context.Response.WriteAsync("File meta could not be found.");
-                    return;
-                }
-
-                meta = await File.ReadAllTextAsync(path);
-
-                cache.Set(id + "-meta", bytes);
-            }
-
-            context.Response.ContentType = meta;
-            await context.Response.BodyWriter.WriteAsync(bytes);
-
-        }
-
-        /// <summary>
-        /// The ProfileImage route returns the profile image associated with the given id.
-        /// 
-        /// Type:
-        /// GET
-        /// 
-        /// Route:
-        /// /content/profileimage/{id}
-        /// 
-        /// </summary>
-        private static async Task ProfileImageRoute(IMemoryCache cache, HttpContext context, MediaDB db)
-        {
-            if (!context.Request.RouteValues.TryGetValue("id", out var id))
+            if (string.IsNullOrWhiteSpace(id))
             {
                 context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Missing id parameter");
+                await context.Response.WriteAsync("Missing id");
                 return;
             }
 
-            byte[] bytes = await GetImageBytes(cache, (string)id, "ProfileImage");
+            type = type.ToLower();
+
+            string[] meta = await GetMeta(cache, (string)id, type);
+
+            if (meta == null || string.IsNullOrWhiteSpace(meta[0]))
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Could not find metadata");
+                return;
+            }
+
+            string ext = "";
+            if (meta.Length > 1)
+                ext = meta[1];
+
+            byte[] bytes = await GetBytes(cache, (string)id, type);
 
             if (bytes == null)
             {
                 context.Response.StatusCode = 404;
-                await context.Response.WriteAsync("Could not find profile image");
+                await context.Response.WriteAsync("Could not find " + type);
                 return;
             }
 
-            context.Response.ContentType = "image/jpeg";
+            context.Response.ContentType = meta[0];
             await context.Response.BodyWriter.WriteAsync(bytes);
-        }
-
-        /// <summary>
-        /// The PlanetImage route returns the profile image associated with the given id.
-        /// 
-        /// Type:
-        /// GET
-        /// 
-        /// Route:
-        /// /content/planetimage/{id}
-        /// 
-        /// </summary>
-        private static async Task PlanetImageRoute(IMemoryCache cache, HttpContext context, MediaDB db)
-        {
-            if (!context.Request.RouteValues.TryGetValue("id", out var id))
-            {
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Missing id parameter");
-                return;
-            }
-
-            byte[] bytes = await GetImageBytes(cache, (string)id, "PlanetImage");
-
-            if (bytes == null)
-            {
-                context.Response.StatusCode = 404;
-                await context.Response.WriteAsync("Could not find planet image");
-                return;
-            }
-
-            context.Response.ContentType = "image/jpeg";
-            await context.Response.BodyWriter.WriteAsync(bytes);
-        }
-
-        /// <summary>
-        /// The Image route returns the image associated with the given id.
-        /// 
-        /// Type:
-        /// GET
-        /// 
-        /// Route:
-        /// /content/image/{id}
-        /// 
-        /// </summary>
-        private static async Task ImageRoute(IMemoryCache cache, HttpContext context, MediaDB db){
-            if (!context.Request.RouteValues.TryGetValue("id", out var id))
-                {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync("Missing id parameter");
-                    return;
-                }
-
-                byte[] bytes = await GetImageBytes(cache, (string)id, "Image");
-
-                if (bytes == null)
-                {
-                    context.Response.StatusCode = 404;
-                    await context.Response.WriteAsync("Could not find image");
-                    return;
-                }
-
-                context.Response.ContentType = "image/jpeg";
-                await context.Response.BodyWriter.WriteAsync(bytes);
+            
         }
 
         ////////////////////
         // Helper methods //
         ////////////////////
 
-        private static async Task<byte[]> GetImageBytes(IMemoryCache cache, string id, string type)
+        private static async Task<string[]> GetMeta(IMemoryCache cache, string id, string type)
+        {
+            string[] meta;
+
+            if (!cache.TryGetValue(id + "-meta", out meta))
+            {
+                string path = "../Content/" + type + "/" + id + ".meta";
+
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                meta = await File.ReadAllLinesAsync(path);
+
+                cache.Set(id + "-meta", meta);
+            }
+
+            return meta;
+        }
+
+        private static async Task<byte[]> GetBytes(IMemoryCache cache, string id, string type)
         {
             byte[] bytes;
 

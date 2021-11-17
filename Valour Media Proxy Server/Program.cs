@@ -13,6 +13,9 @@ using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
 using System.Net.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Valour.MPS.Extensions;
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
 
 namespace Valour_Media_Proxy_Server
 {
@@ -76,7 +79,7 @@ namespace Valour_Media_Proxy_Server
             {
                 app.UseDeveloperExceptionPage();
                 app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Valour_Media_Proxy_Server v1"));
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "VMPS v1"));
             }
 
             app.UseHttpsRedirection();
@@ -116,12 +119,14 @@ namespace Valour_Media_Proxy_Server
             {
                 options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
                 options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
-            }
-            );
+            });
+
+            services.AddEndpointsApiExplorer();
 
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Valour_Media_Proxy_Server", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Valour MPS System", Version = "v1.1" });
+                c.OperationFilter<FileUploadOperation>();
             });
             services.AddMemoryCache();
             services.AddResponseCaching();
