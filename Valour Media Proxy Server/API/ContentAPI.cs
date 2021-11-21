@@ -34,8 +34,7 @@ namespace Valour.MPS.API
 
                 if (Range.Length < 9)
                 {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync("Malformed range header");
+                    context.Response.StatusCode = 206;
                     return;
                 }
 
