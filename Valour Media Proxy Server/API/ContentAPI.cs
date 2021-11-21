@@ -163,8 +163,6 @@ namespace Valour.MPS.API
             {
                 if (!cache.TryGetValue(id + $"-range-{rs}-{re}", out bytes))
                 {
-                    bytes = new byte[re - rs];
-
                     // Check for user file
                     string user_path = $"../Content/users/{user_id}/{type}/{id}";
 
@@ -187,6 +185,8 @@ namespace Valour.MPS.API
 
                     if (re1 is null)
                         re = len - 1;
+
+                    bytes = new byte[re - rs];
 
                     await stream.ReadAsync(bytes, rs, re - rs);
 
