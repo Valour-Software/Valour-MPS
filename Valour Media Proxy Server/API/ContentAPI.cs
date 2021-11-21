@@ -22,17 +22,17 @@ namespace Valour.MPS.API
 
         private static async Task GetRoute(IMemoryCache cache, HttpContext context, MediaDB db,
              string type, string id, ulong user_id,
-             [FromHeader] string range_header)
+             [FromHeader] string Range)
         {
             bool range = false;
             int rs = 0;
             int re = 0;
 
-            if (!string.IsNullOrWhiteSpace(range_header))
+            if (!string.IsNullOrWhiteSpace(Range))
             {
                 range = true;
 
-                if (range_header.Length < 9)
+                if (Range.Length < 9)
                 {
                     context.Response.StatusCode = 400;
                     await context.Response.WriteAsync("Malformed range header");
@@ -40,7 +40,7 @@ namespace Valour.MPS.API
                 }
 
 
-                var inter = range_header.Substring(0, 6);
+                var inter = Range.Substring(0, 6);
 
                 string[] vals = inter.Split('-');
 
