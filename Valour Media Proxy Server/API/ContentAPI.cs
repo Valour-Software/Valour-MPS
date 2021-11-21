@@ -32,43 +32,22 @@ namespace Valour.MPS.API
             {
                 range = true;
 
-                if (Range.Length < 9)
+                if (Range.Length > 6)
                 {
-                    context.Response.StatusCode = 206;
-                    return;
-                }
 
+                    var inter = Range.Substring(6, Range.Length - 6);
 
-                var inter = Range.Substring(6, Range.Length - 6);
+                    string[] vals = inter.Split('-');
 
-                string[] vals = inter.Split('-');
+                    bool parsed = false;
 
-                if (vals.Length < 2)
-                {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync("Malformed range header");
-                    return;
-                }
+                    // parse start
+                    parsed = int.TryParse(vals[0], out rs);
 
-                bool parsed = false;
-
-                // parse start
-                parsed = int.TryParse(vals[0], out rs);
-
-                if (!parsed)
-                {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync("Malformed range header");
-                    return;
-                }
-
-                parsed = int.TryParse(vals[1], out re);
-
-                if (!parsed)
-                {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync("Malformed range header");
-                    return;
+                    if (vals.Length > 1)
+                    {
+                        parsed = int.TryParse(vals[1], out re);
+                    }
                 }
             }
 
@@ -124,7 +103,7 @@ namespace Valour.MPS.API
             if (range)
             {
                 context.Response.Headers.Add("Content-Range", $"bytes {rs}-{re}/{len}");
-                context.Response.Headers.Add("Content-Length", bytes.Length.ToString());
+                context.Response.Headers.Add("Content-Length", len.ToString());
                 context.Response.StatusCode = 206;
             }
 
