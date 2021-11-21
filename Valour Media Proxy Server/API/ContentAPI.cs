@@ -40,7 +40,7 @@ namespace Valour.MPS.API
                 }
 
 
-                var inter = Range.Substring(0, 6);
+                var inter = Range.Substring(5, Range.Length - 6);
 
                 string[] vals = inter.Split('-');
 
