@@ -25,8 +25,8 @@ namespace Valour.MPS.API
              [FromHeader] string Range)
         {
             bool range = false;
-            int rs = 0;
-            int re = 0;
+            int? rs = null;
+            int? re = null;
 
             if (!string.IsNullOrWhiteSpace(Range))
             {
@@ -42,11 +42,17 @@ namespace Valour.MPS.API
                     bool parsed = false;
 
                     // parse start
-                    parsed = int.TryParse(vals[0], out rs);
+                    parsed = int.TryParse(vals[0], out int rs1);
+
+                    if (parsed)
+                        rs = rs1;
 
                     if (vals.Length > 1)
                     {
-                        parsed = int.TryParse(vals[1], out re);
+                        parsed = int.TryParse(vals[1], out int re1);
+
+                        if (parsed)
+                            re = re1;
                     }
                 }
             }
@@ -139,10 +145,19 @@ namespace Valour.MPS.API
 
         private static async Task<(byte[] data, int len)> GetBytes(IMemoryCache cache, string id, string type, ulong user_id,
             // rs is range start, re is range end
-            bool range = false, int rs = 0, int re = 0)
+            bool range = false, int? rs1 = null, int? re1 = null)
         {
             byte[] bytes = null;
             int len = 0;
+
+            int rs = 0;
+            int re = 0;
+
+            if (rs1 != null)
+                rs = (int)rs1;
+
+            if (re1 != null)
+                re = (int)re1;
 
             if (range)
             {
@@ -169,6 +184,9 @@ namespace Valour.MPS.API
                     var stream = File.OpenRead(root_path);
 
                     len = (int)stream.Length;
+
+                    if (re1 is null)
+                        re = len - 1;
 
                     await stream.ReadAsync(bytes, rs, re - rs);
 
