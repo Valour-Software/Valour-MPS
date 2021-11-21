@@ -96,7 +96,10 @@ namespace Valour.MPS.API
 
             type = type.ToLower();
 
-            byte[] bytes = await GetBytes(cache, (string)id, type, user_id, range, rs, re);
+            var res = await GetBytes(cache, (string)id, type, user_id, range, rs, re);
+
+            byte[] bytes = res.data;
+            int len = res.len;
 
             if (bytes == null)
             {
@@ -121,6 +124,8 @@ namespace Valour.MPS.API
             // Handle partial requests
             if (range)
             {
+                context.Response.Headers.Add("Content-Range", $"bytes {rs}-{re}/{len}");
+                context.Response.Headers.Add("Content-Length", bytes.Length.ToString());
                 context.Response.StatusCode = 206;
             }
 
@@ -154,11 +159,12 @@ namespace Valour.MPS.API
             return meta;
         }
 
-        private static async Task<byte[]> GetBytes(IMemoryCache cache, string id, string type, ulong user_id,
+        private static async Task<(byte[] data, int len)> GetBytes(IMemoryCache cache, string id, string type, ulong user_id,
             // rs is range start, re is range end
             bool range = false, int rs = 0, int re = 0)
         {
             byte[] bytes = null;
+            int len = 0;
 
             if (range)
             {
@@ -171,7 +177,7 @@ namespace Valour.MPS.API
 
                     if (!File.Exists(user_path))
                     {
-                        return null;
+                        return (null, 0);
                     }
 
                     // Get root file
@@ -179,10 +185,12 @@ namespace Valour.MPS.API
 
                     if (!File.Exists(root_path))
                     {
-                        return null;
+                        return (null, 0);
                     }
 
                     var stream = File.OpenRead(root_path);
+
+                    len = (int)stream.Length;
 
                     await stream.ReadAsync(bytes, rs, re - rs);
 
@@ -198,7 +206,7 @@ namespace Valour.MPS.API
 
                     if (!File.Exists(user_path))
                     {
-                        return null;
+                        return (null, 0);
                     }
 
                     // Get root file
@@ -206,15 +214,16 @@ namespace Valour.MPS.API
 
                     if (!File.Exists(root_path))
                     {
-                        return null;
+                        return (null, 0);
                     }
 
                     bytes = await File.ReadAllBytesAsync(root_path);
+                    len = bytes.Length;
                     cache.Set(id, bytes);
                 }
             }    
 
-            return bytes;
+            return (bytes, len);
         }
     }
 }
