@@ -16,11 +16,11 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            app.MapGet("/content/{type}/{id}", GetRoute);
+            app.MapGet("/content/{user_id}/{type}/{id}", GetRoute);
         }
 
         private static async Task GetRoute(IMemoryCache cache, HttpContext context, MediaDB db,
-             string type, string id)
+             string type, string id, ulong user_id)
         {
             if (string.IsNullOrWhiteSpace(type))
             {
@@ -36,7 +36,22 @@ namespace Valour.MPS.API
                 return;
             }
 
+            if (user_id == 0){
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Missing user id");
+                return;
+            }
+
             type = type.ToLower();
+
+            byte[] bytes = await GetBytes(cache, (string)id, type, user_id);
+
+            if (bytes == null)
+            {
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Could not find " + type);
+                return;
+            }
 
             string[] meta = await GetMeta(cache, (string)id, type);
 
@@ -50,15 +65,6 @@ namespace Valour.MPS.API
             string ext = "";
             if (meta.Length > 1)
                 ext = meta[1];
-
-            byte[] bytes = await GetBytes(cache, (string)id, type);
-
-            if (bytes == null)
-            {
-                context.Response.StatusCode = 404;
-                await context.Response.WriteAsync("Could not find " + type);
-                return;
-            }
 
             context.Response.ContentType = meta[0];
             await context.Response.BodyWriter.WriteAsync(bytes);
@@ -90,20 +96,29 @@ namespace Valour.MPS.API
             return meta;
         }
 
-        private static async Task<byte[]> GetBytes(IMemoryCache cache, string id, string type)
+        private static async Task<byte[]> GetBytes(IMemoryCache cache, string id, string type, ulong user_id)
         {
             byte[] bytes;
 
             if (!cache.TryGetValue(id, out bytes))
             {
-                string path = "../Content/" + type + "/" + id;
+                // Check for user file
+                string user_path = $"../Content/users/{user_id}/{type}/{id}";
 
-                if (!File.Exists(path))
+                if (!File.Exists(user_path))
                 {
                     return null;
                 }
 
-                bytes = await File.ReadAllBytesAsync(path);
+                // Get root file
+                var root_path = $"../Content/{type}/{id}";
+
+                if (!File.Exists(root_path))
+                {
+                    return null;
+                }
+
+                bytes = await File.ReadAllBytesAsync(root_path);
 
                 cache.Set(id, bytes);
             }

@@ -42,7 +42,7 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            app.MapPost("/upload/{type}", UploadRoute);
+            app.MapPost("/upload/{user_id}/{type}", UploadRoute);
         }
 
         public static void HandleExif(Image image)
@@ -66,7 +66,7 @@ namespace Valour.MPS.API
         }
 
         [FileUploadOperation.FileContentType]
-        private static async Task UploadRoute(HttpContext context, string auth, string type)
+        private static async Task UploadRoute(HttpContext context, string auth, string type, ulong user_id)
         {
             Console.WriteLine(type + " upload");
 
@@ -180,7 +180,7 @@ namespace Valour.MPS.API
                     }
 
                     // Save to disk
-                    path = await StorageManager.Save(ms, content_type, ext, type);
+                    path = await StorageManager.Save(ms, content_type, ext, type, user_id);
                 }
             }
             // Handle non-image files
@@ -199,7 +199,7 @@ namespace Valour.MPS.API
 
                     string ext = Path.GetExtension(file.FileName);
 
-                    path = await StorageManager.Save(ms, file.ContentType, ext, type);
+                    path = await StorageManager.Save(ms, file.ContentType, ext, type, user_id);
                 }
             }
 

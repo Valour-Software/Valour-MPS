@@ -118,9 +118,11 @@ namespace Valour.MPS.Storage
         /// Saves the given image
         /// </summary>
         /// <returns>The path to the image</returns>
-        public static async Task<string> Save(MemoryStream ms, string content_type, string ext, string type)
+        public static async Task<string> Save(MemoryStream ms, string content_type, string ext, string type, ulong user_id)
         {
             type = type.ToLower();
+
+            // First save the image
 
             // Get hash from image
             byte[] h = SHA256.ComputeHash(ms.GetBuffer());
@@ -142,8 +144,32 @@ namespace Valour.MPS.Storage
                 await File.WriteAllTextAsync("../" + metaPath, $"{content_type}\n{ext}");
             }
 
-            return "https://vmps.valour.gg/" + filePath;
             
+            
+            // Next save the user 'route' to the image. This is necessary because multile users may upload the same
+            // exact image. To understand the issue, imagine 100 people post an image and then one deletes it. What
+            // Should happen? Having routes to the file be deleted rather than the image itself (unless all routes are deleted)
+            // solves that issue.
+
+            // Ensure user folder exists
+
+            var userFolderPath = $"../Content/users/{user_id}";
+
+            if (!Directory.Exists(userFolderPath))
+                Directory.CreateDirectory(userFolderPath);
+
+            if (!Directory.Exists(userFolderPath + "/" + type))
+                Directory.CreateDirectory(userFolderPath + "/" + type);
+
+            var userFilePath = $"{userFolderPath}/{type}/{hash}{ext}";
+
+            // Create file if it doesn't exist
+            if (!File.Exists(userFilePath))
+                File.Create(userFilePath);
+
+            // Example
+            // https://vmps.valour.gg/content/21849839483/image/AEF86D97701AB.txt
+            return $"https://vmps.valour.gg/content/{user_id}/{type}/{hash}{ext}";
         }
     }
 }
