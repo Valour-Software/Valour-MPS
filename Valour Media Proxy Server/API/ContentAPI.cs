@@ -184,7 +184,7 @@ namespace Valour.MPS.API
 
                     var stream = File.OpenRead(root_path);
 
-                    await stream.ReadAsync(bytes, rs, re - re);
+                    await stream.ReadAsync(bytes, rs, re - rs);
 
                     cache.Set(id + $"-range-{rs}-{re}", bytes);
                 }
