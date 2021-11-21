@@ -109,7 +109,7 @@ namespace Valour.MPS.API
             if (range)
             {
                 context.Response.Headers.Add("Content-Range", $"bytes {rs}-{re}/{len}");
-                context.Response.Headers.Add("Content-Length", len.ToString());
+                context.Response.Headers.Add("Content-Length", bytes.Length.ToString());
                 context.Response.StatusCode = 206;
             }
 
