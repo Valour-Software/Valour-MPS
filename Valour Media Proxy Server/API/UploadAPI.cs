@@ -91,6 +91,10 @@ namespace Valour.MPS.API
                     max_length = 8388608;
                     should_be_image = true;
                     break;
+                case "app":
+                    max_length = 10240000;
+                    should_be_image = true;
+                    break;
                 default:
                     context.Response.StatusCode = 400;
                     await context.Response.WriteAsync("Unknown type " + type);
@@ -149,12 +153,14 @@ namespace Valour.MPS.API
                 // Extra image processing
                 switch (type)
                 {
-                    case "profileimage":
+                    case "profile":
                         image.Mutate(x => x.Resize(256, 256));
                         break;
-                    case "planetimage":
+                    case "planet":
                         image.Mutate(x => x.Resize(512, 512));
                         break;
+                    case "app":
+                        image.Mutate(x => x.Resize(512, 512));
                 }
 
                 // Save image to stream

@@ -23,7 +23,8 @@ namespace Valour.MPS.Storage
             "planet",
             "profile",
             "image",
-            "file"
+            "file",
+            "app"
         };
 
         public static JpegEncoder jpegEncoder = new()
