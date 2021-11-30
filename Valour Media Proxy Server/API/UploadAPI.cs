@@ -161,6 +161,7 @@ namespace Valour.MPS.API
                         break;
                     case "app":
                         image.Mutate(x => x.Resize(512, 512));
+                        break;
                 }
 
                 // Save image to stream
