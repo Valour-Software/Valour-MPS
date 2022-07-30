@@ -66,7 +66,7 @@ namespace Valour.MPS.API
         }
 
         [FileUploadOperation.FileContentType]
-        private static async Task UploadRoute(HttpContext context, string auth, string type, ulong user_id)
+        private static async Task<IResult> UploadRoute(HttpContext context, string auth, string type, ulong user_id)
         {
             Console.WriteLine(type + " upload");
 
@@ -96,44 +96,26 @@ namespace Valour.MPS.API
                     should_be_image = true;
                     break;
                 default:
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync("Unknown type " + type);
-                    return;
+                    return Results.BadRequest("Unknown upload type: " + type);
             }
 
             if (context.Request.ContentLength > max_length)
-            {
-                context.Response.StatusCode = 413;
-                await context.Response.WriteAsync("Max file size is " + max_length + " bytes");
-                return;
-            }
+                return Results.UnprocessableEntity("Max file size is " + max_length + " bytes");
 
             if (auth != VMPS_Config.Current.Authorization_Key)
-            {
-                context.Response.StatusCode = 401;
-                await context.Response.WriteAsync("Unauthorized.");
-                return;
-            }
+                return Results.Unauthorized();
 
             var file = context.Request.Form.Files.FirstOrDefault();
 
             if (file is null)
-            {
-                context.Response.StatusCode = 404;
-                await context.Response.WriteAsync("Please attach a file");
-                return;
-            }
+                return Results.NotFound("Include file.");
 
             string path = "";
 
             if (should_be_image)
             {
                 if (!ImageContent.Contains(file.ContentType))
-                {
-                    context.Response.StatusCode = 415;
-                    await context.Response.WriteAsync("Use /upload/file for non-images");
-                    return;
-                }
+                    return Results.UnprocessableEntity("Use /upload/file for non-images");
 
                 var stream = file.OpenReadStream();
 
@@ -142,11 +124,7 @@ namespace Valour.MPS.API
                 var image = image_data.Image;
 
                 if (image == null)
-                {
-                    context.Response.StatusCode = 415;
-                    await context.Response.WriteAsync("Image malformed");
-                    return;
-                }
+                    return Results.UnprocessableEntity("Image malformed");
 
                 HandleExif(image);
 
