@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
-using Valour.Shared.Authorization;
 
 namespace Valour.Server.Http
 {
