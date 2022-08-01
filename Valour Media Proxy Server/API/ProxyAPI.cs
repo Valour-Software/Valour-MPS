@@ -40,7 +40,7 @@ namespace Valour.MPS.API
         /// </summary>
         private static void ProxyRoute(WebApplication app)
         {
-            app.MapGet("/proxy/{url}", (async (HttpContext context, HttpClient client, MediaDB db) =>
+            app.MapGet("/proxy/{url}", (async (HttpContext context, HttpClient client, MediaDb db) =>
 
             {
                 if (!context.Request.RouteValues.TryGetValue("url", out var url))
@@ -54,7 +54,7 @@ namespace Valour.MPS.API
 
                 if (item != null)
                 {
-                    await (await client.GetStreamAsync(item.Origin_Url)).CopyToAsync(context.Response.BodyWriter.AsStream());
+                    await (await client.GetStreamAsync(item.Origin)).CopyToAsync(context.Response.BodyWriter.AsStream());
                     return;
                 }
                 else
@@ -84,7 +84,7 @@ namespace Valour.MPS.API
         /// </summary>
         private static void SendUrlRoute(WebApplication app)
         {
-            app.MapPost("/proxy/sendurl", (async (HttpContext context, HttpClient client, MediaDB db) =>
+            app.MapPost("/proxy/sendurl", (async (HttpContext context, HttpClient client, MediaDb db) =>
 
             {
                 if (!context.Request.Query.TryGetValue("url", out var url_in))
@@ -104,7 +104,7 @@ namespace Valour.MPS.API
                 string url = (string)url_in;
                 string auth = (string)auth_in;
 
-                if (auth != VMPS_Config.Current.Authorization_Key)
+                if (auth != VmpsConfig.Current.AuthKey)
                 {
                     Console.WriteLine("Failed authorization:");
                     Console.WriteLine(auth);
@@ -145,8 +145,8 @@ namespace Valour.MPS.API
                     item = new ProxyItem()
                     {
                         Id = hash,
-                        Origin_Url = url,
-                        Mime_Type = content_type
+                        Origin = url,
+                        MimeType = content_type
                     };
 
                     await db.AddAsync(item);

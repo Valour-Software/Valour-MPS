@@ -1,17 +1,23 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using Amazon.S3.Model;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Formatting;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Valour.MPS.Database;
 using Valour.MPS.Extensions;
+using Valour.MPS.Media;
+using Valour.MPS.Storage;
+using Valour.Shared;
 
 namespace Valour.MPS.API
 {
@@ -20,112 +26,42 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            app.MapGet("/content/{user_id}/{type}/{id}", GetRoute);
+            app.MapGet("/content/{category}/{userId}/{hash}", GetRoute);
         }
 
-        private static async Task<object> GetRoute(IMemoryCache cache, HttpContext context, MediaDB db,
-             string type, string id, ulong user_id)
+        private static async Task<IResult> GetRoute(IMemoryCache cache, HttpContext context, MediaDb db,
+             ContentCategory category, string hash, ulong userId)
         {
+            if (string.IsNullOrWhiteSpace(hash))
+                return Results.BadRequest("Include id.");
 
-            if (string.IsNullOrWhiteSpace(type))
+            if (userId == 0)
+                return Results.BadRequest("Include user id.");
+
+            var id = $"{category}/{userId}/{hash}";
+
+            var bucketItemRecord = await db.BucketItems.FindAsync(id);
+            if (bucketItemRecord is null)
+                return Results.NotFound();
+
+            var request = new GetObjectRequest()
             {
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Missing type");
-                return null;
-            }
+                Key = hash,
+                BucketName = "valourmps"
+            };
 
-            if (string.IsNullOrWhiteSpace(id))
-            {
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Missing id");
-                return null;
-            }
+            var response = await BucketManager.Client.GetObjectAsync(request);
 
-            if (user_id == 0){
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Missing user id");
-                return null;
-            }
+            if (!IsSuccessStatusCode(response.HttpStatusCode))
+                return Results.BadRequest("Failed to get object from bucket.");
 
-            type = type.ToLower();
-
-            var bytes = await GetBytes(cache, (string)id, type, user_id);
-
-            if (bytes == null)
-            {
-                context.Response.StatusCode = 404;
-                await context.Response.WriteAsync("Could not find " + type);
-                return null;
-            }
-
-            string[] meta = await GetMeta(cache, (string)id, type);
-
-            if (meta == null || string.IsNullOrWhiteSpace(meta[0]))
-            {
-                context.Response.StatusCode = 404;
-                await context.Response.WriteAsync("Could not find metadata");
-                return null;
-            }
-
-            string ext = "";
-            if (meta.Length > 1)
-                ext = meta[1];
-
-            return Results.File(bytes, meta[0], id, true);   
+            return Results.Stream(response.ResponseStream, bucketItemRecord.MimeType, hash, enableRangeProcessing: true);
         }
 
-        ////////////////////
-        // Helper methods //
-        ////////////////////
-
-        private static async Task<string[]> GetMeta(IMemoryCache cache, string id, string type)
+        public static bool IsSuccessStatusCode(HttpStatusCode statusCode)
         {
-            string[] meta;
-
-            if (!cache.TryGetValue(id + "-meta", out meta))
-            {
-                string path = "../Content/" + type + "/" + id + ".meta";
-
-                if (!File.Exists(path))
-                {
-                    return null;
-                }
-
-                meta = await File.ReadAllLinesAsync(path);
-
-                cache.Set(id + "-meta", meta);
-            }
-
-            return meta;
-        }
-
-        private static async Task<byte[]> GetBytes(IMemoryCache cache, string id, string type, ulong user_id)
-        {
-            byte[] bytes = null;
-
-            if (!cache.TryGetValue($"{user_id}-{id}", out bytes))
-            {
-                // Check for user file
-                string user_path = $"../Content/users/{user_id}/{type}/{id}";
-
-                if (!File.Exists(user_path))
-                {
-                    return null;
-                }
-
-                // Get root file
-                var root_path = $"../Content/{type}/{id}";
-
-                if (!File.Exists(root_path))
-                {
-                    return null;
-                }
-
-                bytes = await File.ReadAllBytesAsync(root_path);
-                cache.Set($"{user_id}-{id}", bytes);
-            }
-
-            return bytes;
+            var intStatus = (int)statusCode;
+            return (intStatus >= 200) && (intStatus <= 299);
         }
     }
 }

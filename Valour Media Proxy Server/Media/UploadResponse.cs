@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Valour.MPS.Images
+namespace Valour.MPS.Media
 {
     public class UploadResponse
     {

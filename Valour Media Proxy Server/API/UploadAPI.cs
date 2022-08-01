@@ -1,28 +1,23 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Mvc;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Metadata.Profiles.Exif;
+using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Valour.MPS.Database;
-using Valour.MPS.Proxy;
-using System.Net.Http;
-using Valour.MPS.Config;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using Valour.MPS.Storage;
-using Valour.MPS.Images;
-using Valour.MPS.Extensions;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using System.IO;
-using Microsoft.AspNetCore.Mvc;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Png;
+using System.Linq;
+using System.Net.Mime;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
+using Valour.MPS.Config;
+using Valour.MPS.Database;
+using Valour.MPS.Extensions;
+using Valour.MPS.Media;
+using Valour.MPS.Storage;
+using Valour.Shared;
 
 namespace Valour.MPS.API
 {
@@ -42,7 +37,7 @@ namespace Valour.MPS.API
 
         public static void AddRoutes(WebApplication app)
         {
-            app.MapPost("/upload/{user_id}/{type}", UploadRoute);
+            app.MapPost("/upload/{userId}/{category}", UploadRoute);
         }
 
         public static void HandleExif(Image image)
@@ -66,56 +61,58 @@ namespace Valour.MPS.API
         }
 
         [FileUploadOperation.FileContentType]
-        private static async Task<IResult> UploadRoute(HttpContext context, string auth, string type, ulong user_id)
+        [RequestSizeLimit(10240000)]
+        private static async Task<IResult> UploadRoute(HttpContext context, string auth, ContentCategory category, long userId, MediaDb db)
         {
-            Console.WriteLine(type + " upload");
+            Console.WriteLine(category + " upload");
 
             long max_length = 10240000;
             bool should_be_image = false;
 
-            // Get max length
-            switch (type)
+            // Get max length 
+            switch (category)
             {
-                case "file":
+                case ContentCategory.File:
                     max_length = 10240000;
                     break;
-                case "image":
+                case ContentCategory.Image:
                     max_length = 10240000;
                     should_be_image = true;
                     break;
-                case "profile":
+                case ContentCategory.Profile:
                     max_length = 2621440;
                     should_be_image = true;
                     break;
-                case "planet":
+                case ContentCategory.Planet:
                     max_length = 8388608;
                     should_be_image = true;
                     break;
-                case "app":
+                case ContentCategory.App:
                     max_length = 10240000;
                     should_be_image = true;
                     break;
                 default:
-                    return Results.BadRequest("Unknown upload type: " + type);
+                    return Results.BadRequest("Unknown type: " + category);
             }
 
             if (context.Request.ContentLength > max_length)
-                return Results.UnprocessableEntity("Max file size is " + max_length + " bytes");
+                return Results.BadRequest("Max file size is " + max_length + " bytes");
 
-            if (auth != VMPS_Config.Current.Authorization_Key)
+
+            if (auth != VmpsConfig.Current.AuthKey)
                 return Results.Unauthorized();
 
             var file = context.Request.Form.Files.FirstOrDefault();
 
             if (file is null)
-                return Results.NotFound("Include file.");
+                return Results.BadRequest("Please attach a file");
 
-            string path = "";
+            TaskResult result;
 
             if (should_be_image)
             {
                 if (!ImageContent.Contains(file.ContentType))
-                    return Results.UnprocessableEntity("Use /upload/file for non-images");
+                    return Results.BadRequest("Use /upload/file for non-images");
 
                 var stream = file.OpenReadStream();
 
@@ -124,71 +121,69 @@ namespace Valour.MPS.API
                 var image = image_data.Image;
 
                 if (image == null)
-                    return Results.UnprocessableEntity("Image malformed");
+                    return Results.BadRequest("Image malformed"); 
 
                 HandleExif(image);
 
                 // Extra image processing
-                switch (type)
+                switch (category)
                 {
-                    case "profile":
+                    case ContentCategory.Profile:
                         image.Mutate(x => x.Resize(256, 256));
                         break;
-                    case "planet":
+                    case ContentCategory.Planet:
                         image.Mutate(x => x.Resize(512, 512));
                         break;
-                    case "app":
+                    case ContentCategory.App:
                         image.Mutate(x => x.Resize(512, 512));
                         break;
                 }
 
                 // Save image to stream
-                using (MemoryStream ms = new())
+                using MemoryStream ms = new();
+                
+                string contentType;
+                string extension;
+
+                // Support transparency
+                if (image_data.Format is not PngFormat)
                 {
-                    string content_type = "";
-                    string ext = "";
-
-                    // Support transparency
-                    if (image_data.Format is not PngFormat)
-                    {
-                        // No transparency
-                        image.Save(ms, StorageManager.jpegEncoder);
-                        content_type = "image/jpeg";
-                        ext = ".jpg";
-                    }
-                    else
-                    {
-                        // Has transparency
-                        image.Save(ms, StorageManager.pngEncoder);
-                        content_type = "image/png";
-                        ext = ".png";
-                    }
-
-                    // Save to disk
-                    path = await StorageManager.Save(ms, content_type, ext, type, user_id);
+                    // No transparency
+                    image.Save(ms, StorageManager.jpegEncoder);
+                    contentType = "image/jpeg";
+                    extension = ".jpg";
                 }
+                else
+                {
+                    // Has transparency
+                    image.Save(ms, StorageManager.pngEncoder);
+                    contentType = "image/png";
+                    extension = ".png";
+                }
+
+                result = await BucketManager.Upload(ms, extension, userId, contentType, category, db);
+
+                // Save to disk
+                //path = await StorageManager.Save(ms, content_type, ext, category, user_id);
+                
             }
             // Handle non-image files
             else
             {
                 if (ImageContent.Contains(context.Request.ContentType))
-                {
-                    context.Response.StatusCode = 415;
-                    await context.Response.WriteAsync("Use /upload/image for images");
-                    return;
-                }
+                    return Results.BadRequest("Use /upload/image for images");
 
-                using (MemoryStream ms = new())
-                {
-                    await file.CopyToAsync(ms);
+                using MemoryStream ms = new();
+                
+                await file.CopyToAsync(ms);
 
-                    string ext = Path.GetExtension(file.FileName);
+                string ext = Path.GetExtension(file.FileName);
 
-                    path = await StorageManager.Save(ms, file.ContentType, ext, type, user_id);
-                }
+                result = await BucketManager.Upload(ms, ext, userId, file.ContentType, category, db);
+                //path = await StorageManager.Save(ms, file.ContentType, ext, category, userId);
             }
 
-            await context.Response.WriteAsync(path);
+            return Results.Ok(result.Message);
         }
 
         ////////////////////

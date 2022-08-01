@@ -1,16 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Jpeg;
+﻿using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Valour.MPS.Images;
 
 namespace Valour.MPS.Storage
 {
@@ -30,7 +25,7 @@ namespace Valour.MPS.Storage
         public static JpegEncoder jpegEncoder = new()
         {
             Quality = 80,
-            Subsample = JpegSubsample.Ratio444
+            ColorType = JpegColorType.YCbCrRatio444
         };
 
         public static PngEncoder pngEncoder = new()

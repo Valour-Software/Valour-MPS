@@ -7,14 +7,14 @@ using System.Text.Json.Serialization;
 
 namespace Valour.MPS.Config
 {
-    public class VMPS_Config
+    public class VmpsConfig
     {
         /// <summary>
         /// The static instance of the current instance
         /// </summary>
-        public static VMPS_Config Current;
+        public static VmpsConfig Current;
 
-        public VMPS_Config()
+        public VmpsConfig()
         {
             Current = this;
         }
@@ -22,20 +22,27 @@ namespace Valour.MPS.Config
         // Cross-server authorization
 
         [JsonPropertyName("auth_key")]
-        public string Authorization_Key { get; set; }
+        public string AuthKey { get; set; }
 
         // Database properties
 
         [JsonPropertyName("db_address")]
-        public string Database_Address { get; set; }
+        public string DbAddr { get; set; }
 
         [JsonPropertyName("db_user")]
-        public string Database_User { get; set; }
+        public string DbUser { get; set; }
 
         [JsonPropertyName("db_pass")]
-        public string Database_Password { get; set; }
+        public string DbPass { get; set; }
 
         [JsonPropertyName("db_name")]
-        public string Database_Name { get; set; }
+        public string DbName { get; set; }
+
+        [JsonPropertyName("s3_access")]
+        public string S3Access { get; set; }
+        [JsonPropertyName("s3_secret")]
+        public string S3Secret { get; set; }
+        [JsonPropertyName("r2_endpoint")]
+        public string R2Endpoint { get; set; }
     }
 }
