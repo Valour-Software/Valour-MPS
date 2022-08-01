@@ -17,6 +17,7 @@ using Valour.MPS.Database;
 using Valour.MPS.Extensions;
 using Valour.MPS.Media;
 using Valour.MPS.Storage;
+using Valour.Server.Http;
 using Valour.Shared;
 
 namespace Valour.MPS.API
@@ -183,7 +184,7 @@ namespace Valour.MPS.API
                 //path = await StorageManager.Save(ms, file.ContentType, ext, category, userId);
             }
 
-            return Results.Ok(result.Message);
+            return ValourResult.Ok(result.Message);
         }
 
         ////////////////////
